@@ -40,22 +40,24 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
   const [facing, setFacing] = useState<CameraType>('back');
   
   const cameraRef = useRef<CameraView>(null);
-  const { addIncome, addExpense, apiKey } = useFinanceStore();
+  const { addIncome, addExpense, apiKey, dateSelection } = useFinanceStore();
   
   useEffect(() => {
     if (visible) {
-      // Initialize with current date
-      setDate(new Date());
+      // Initialize with selected month/year from store, but current day
+      const selectedDate = new Date(dateSelection.year, dateSelection.month - 1, new Date().getDate());
+      setDate(selectedDate);
     } else {
       resetForm();
     }
-  }, [visible]);
+  }, [visible, dateSelection]);
   
   const resetForm = () => {
     setName('');
     setAmount('');
     setVatRate('21');
-    setDate(new Date());
+    const selectedDate = new Date(dateSelection.year, dateSelection.month - 1, new Date().getDate());
+    setDate(selectedDate);
     setImageUri(null);
     setIsProcessing(false);
   };

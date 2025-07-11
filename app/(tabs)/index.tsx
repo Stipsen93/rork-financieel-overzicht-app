@@ -1,0 +1,238 @@
+import React, { useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { useFinanceStore } from '@/store/financeStore';
+import Colors from '@/constants/colors';
+import YearPicker from '@/components/YearPicker';
+import SummaryCard from '@/components/SummaryCard';
+import { calculateMonthlySummary, filterEntriesByYear, formatCurrency } from '@/utils/finance';
+
+export default function OverviewScreen() {
+  const { incomes, expenses, yearSelection, setYearSelection } = useFinanceStore();
+  
+  const filteredIncomes = useMemo(
+    () => filterEntriesByYear(incomes, yearSelection.year),
+    [incomes, yearSelection]
+  );
+  
+  const filteredExpenses = useMemo(
+    () => filterEntriesByYear(expenses, yearSelection.year),
+    [expenses, yearSelection]
+  );
+  
+  const summary = useMemo(
+    () => calculateMonthlySummary(filteredIncomes, filteredExpenses),
+    [filteredIncomes, filteredExpenses]
+  );
+  
+  const handleYearChange = (year: number) => {
+    setYearSelection({ year });
+  };
+  
+  return (
+    <ScrollView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Financieel Overzicht</Text>
+        <YearPicker
+          year={yearSelection.year}
+          onSelect={handleYearChange}
+        />
+      </View>
+      
+      <View style={styles.summaryContainer}>
+        <SummaryCard
+          title="Totaal Inkomen"
+          amount={summary.totalIncome}
+          isPositive={true}
+        />
+        <SummaryCard
+          title="Totaal Uitgaven"
+          amount={summary.totalExpense}
+          isPositive={false}
+        />
+      </View>
+      
+      <View style={styles.balanceCard}>
+        <Text style={styles.balanceTitle}>Netto Saldo</Text>
+        <Text
+          style={[
+            styles.balanceAmount,
+            { color: summary.netAmount >= 0 ? Colors.success : Colors.danger },
+          ]}
+        >
+          {formatCurrency(summary.netAmount)}
+        </Text>
+      </View>
+      
+      <View style={styles.vatContainer}>
+        <View style={styles.vatCard}>
+          <Text style={styles.vatTitle}>BTW te Betalen</Text>
+          <Text style={[styles.vatAmount, { color: Colors.danger }]}>
+            {formatCurrency(summary.vatToPay)}
+          </Text>
+        </View>
+        
+        <View style={styles.vatCard}>
+          <Text style={styles.vatTitle}>BTW te Vorderen</Text>
+          <Text style={[styles.vatAmount, { color: Colors.success }]}>
+            {formatCurrency(summary.vatToClaim)}
+          </Text>
+        </View>
+      </View>
+      
+      <View style={styles.netVatCard}>
+        <Text style={styles.netVatTitle}>Netto BTW</Text>
+        <Text
+          style={[
+            styles.netVatAmount,
+            {
+              color:
+                summary.vatToPay - summary.vatToClaim >= 0
+                  ? Colors.danger
+                  : Colors.success,
+            },
+          ]}
+        >
+          {formatCurrency(summary.vatToPay - summary.vatToClaim)}
+        </Text>
+      </View>
+      
+      <View style={styles.statsContainer}>
+        <View style={styles.statCard}>
+          <Text style={styles.statLabel}>Inkomen Posten</Text>
+          <Text style={styles.statValue}>{filteredIncomes.length}</Text>
+        </View>
+        
+        <View style={styles.statCard}>
+          <Text style={styles.statLabel}>Uitgaven Posten</Text>
+          <Text style={styles.statValue}>{filteredExpenses.length}</Text>
+        </View>
+      </View>
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  header: {
+    padding: 16,
+    backgroundColor: Colors.secondary,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: Colors.text,
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  summaryContainer: {
+    marginTop: 16,
+  },
+  balanceCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    padding: 20,
+    margin: 16,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  balanceTitle: {
+    fontSize: 16,
+    color: Colors.lightText,
+    marginBottom: 8,
+  },
+  balanceAmount: {
+    fontSize: 32,
+    fontWeight: 'bold',
+  },
+  vatContainer: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginBottom: 16,
+  },
+  vatCard: {
+    flex: 1,
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    padding: 16,
+    marginRight: 8,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  vatTitle: {
+    fontSize: 14,
+    color: Colors.lightText,
+    marginBottom: 4,
+  },
+  vatAmount: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  netVatCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    padding: 16,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  netVatTitle: {
+    fontSize: 14,
+    color: Colors.lightText,
+    marginBottom: 4,
+  },
+  netVatAmount: {
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginBottom: 32,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    padding: 16,
+    marginRight: 8,
+    alignItems: 'center',
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  statLabel: {
+    fontSize: 14,
+    color: Colors.lightText,
+    marginBottom: 4,
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: Colors.text,
+  },
+});

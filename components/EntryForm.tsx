@@ -12,7 +12,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { Calendar, Camera, X } from 'lucide-react-native';
+import { Calendar, Camera, X, Send } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import { CameraView, CameraType } from 'expo-camera';
@@ -111,10 +111,6 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
       if (photo) {
         setImageUri(photo.uri);
         setShowCamera(false);
-        
-        if (apiKey) {
-          processReceipt(photo.uri);
-        }
       }
     } catch (error) {
       console.error('Error taking picture:', error);
@@ -131,14 +127,12 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
     
     if (!result.canceled && result.assets && result.assets.length > 0) {
       setImageUri(result.assets[0].uri);
-      
-      if (apiKey) {
-        processReceipt(result.assets[0].uri);
-      }
     }
   };
   
-  const processReceipt = async (uri: string) => {
+  const processReceipt = async () => {
+    if (!imageUri) return;
+    
     if (!apiKey) {
       Alert.alert('API Sleutel Ontbreekt', 'Stel je ChatGPT API sleutel in bij instellingen');
       return;
@@ -147,7 +141,7 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
     setIsProcessing(true);
     
     try {
-      const result = await processReceiptImage(uri, apiKey);
+      const result = await processReceiptImage(imageUri, apiKey);
       
       if (result) {
         setName(result.name || '');
@@ -156,6 +150,7 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
         if (result.date) {
           setDate(new Date(result.date));
         }
+        Alert.alert('Succes', 'Bon succesvol verwerkt!');
       }
     } catch (error) {
       console.error('Error processing receipt:', error);
@@ -186,13 +181,6 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
                 <X size={24} color={Colors.text} />
               </TouchableOpacity>
             </View>
-            
-            {isProcessing && (
-              <View style={styles.processingOverlay}>
-                <ActivityIndicator size="large" color={Colors.primary} />
-                <Text style={styles.processingText}>Bon verwerken...</Text>
-              </View>
-            )}
             
             <ScrollView style={styles.formContainer}>
               <Text style={styles.label}>Naam</Text>
@@ -286,6 +274,29 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
                     <X size={20} color={Colors.secondary} />
                   </TouchableOpacity>
                 </View>
+              )}
+              
+              {imageUri && apiKey && (
+                <TouchableOpacity
+                  style={[
+                    styles.processButton,
+                    isProcessing && styles.processButtonDisabled
+                  ]}
+                  onPress={processReceipt}
+                  disabled={isProcessing}
+                >
+                  {isProcessing ? (
+                    <View style={styles.processingContainer}>
+                      <ActivityIndicator size="small" color={Colors.secondary} />
+                      <Text style={styles.processButtonText}>Verwerken...</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.processingContainer}>
+                      <Send size={16} color={Colors.secondary} />
+                      <Text style={styles.processButtonText}>Verstuur Foto</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
               )}
               
               <TouchableOpacity
@@ -464,6 +475,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  processButton: {
+    backgroundColor: Colors.primaryDark,
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  processButtonDisabled: {
+    opacity: 0.7,
+  },
+  processingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  processButtonText: {
+    color: Colors.secondary,
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
   submitButton: {
     backgroundColor: Colors.primary,
     borderRadius: 8,
@@ -509,21 +540,5 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 30,
     backgroundColor: Colors.secondary,
-  },
-  processingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  processingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: Colors.text,
   },
 });

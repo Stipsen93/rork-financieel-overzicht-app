@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useFinanceStore } from '@/store/financeStore';
 import Colors from '@/constants/colors';
 import YearPicker from '@/components/YearPicker';
@@ -7,6 +8,7 @@ import SummaryCard from '@/components/SummaryCard';
 import { calculateMonthlySummary, filterEntriesByYear, formatCurrency } from '@/utils/finance';
 
 export default function OverviewScreen() {
+  const router = useRouter();
   const { incomes, expenses, yearSelection, setYearSelection } = useFinanceStore();
   
   const filteredIncomes = useMemo(
@@ -107,6 +109,13 @@ export default function OverviewScreen() {
           <Text style={styles.statValue}>{filteredExpenses.length}</Text>
         </View>
       </View>
+      
+      <TouchableOpacity
+        style={styles.annualReportButton}
+        onPress={() => router.push('/annual-report')}
+      >
+        <Text style={styles.annualReportButtonText}>Jaarrekening</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
@@ -208,7 +217,7 @@ const styles = StyleSheet.create({
   statsContainer: {
     flexDirection: 'row',
     marginHorizontal: 16,
-    marginBottom: 32,
+    marginBottom: 16,
   },
   statCard: {
     flex: 1,
@@ -234,5 +243,23 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: Colors.text,
+  },
+  annualReportButton: {
+    backgroundColor: Colors.primaryDark,
+    borderRadius: 12,
+    padding: 16,
+    margin: 16,
+    alignItems: 'center',
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    marginBottom: 32,
+  },
+  annualReportButtonText: {
+    color: Colors.secondary,
+    fontSize: 18,
+    fontWeight: 'bold',
   },
 });

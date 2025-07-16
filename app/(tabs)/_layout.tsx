@@ -35,7 +35,7 @@ export default function TabLayout() {
         headerRight: () => (
           <TouchableOpacity
             style={{ marginRight: 15 }}
-            onPress={() => router.push('/profile')}
+            onPress={() => router.push('/(tabs)/profile')}
           >
             <Settings size={24} color={Colors.text} />
           </TouchableOpacity>
@@ -61,6 +61,12 @@ export default function TabLayout() {
         options={{
           title: 'Uitgaven',
           tabBarIcon: ({ color }) => <TrendingDown size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          href: null, // Hide from tab bar
         }}
       />
     </Tabs>

@@ -164,8 +164,11 @@ const categorizeExpensesSimple = (expenses: FinanceEntry[]): CategorizedExpenses
 };
 
 const calculateTotals = (incomes: FinanceEntry[], categorizedExpenses: CategorizedExpenses) => {
-  const brutowinst = incomes.reduce((sum, income) => sum + income.amount, 0);
+  const totalGrossIncome = incomes.reduce((sum, income) => sum + income.amount, 0);
   const btwTeBetalen = incomes.reduce((sum, income) => sum + income.vatAmount, 0);
+  
+  // Calculate net income (gross income minus VAT to be paid)
+  const nettoInkomen = totalGrossIncome - btwTeBetalen;
   
   const totaleTanken = categorizedExpenses.tanken.reduce((sum, expense) => sum + expense.amount, 0);
   const totaleBankkosten = categorizedExpenses.bankkosten.reduce((sum, expense) => sum + expense.amount, 0);
@@ -175,13 +178,14 @@ const calculateTotals = (incomes: FinanceEntry[], categorizedExpenses: Categoriz
   const totaleOverige = categorizedExpenses.overige.reduce((sum, expense) => sum + expense.amount, 0);
   
   const totaleKosten = totaleTanken + totaleBankkosten + totaleAutogarage + totaleVerzekeringen + totaleTelefoon + totaleOverige;
-  const nettoResultaat = brutowinst - totaleKosten;
+  const nettoResultaat = nettoInkomen - totaleKosten;
   
   const btwTeVorderen = Object.values(categorizedExpenses).flat().reduce((sum, expense) => sum + expense.vatAmount, 0);
   const nettoBtw = btwTeBetalen - btwTeVorderen;
 
   return {
-    brutowinst,
+    totalGrossIncome,
+    nettoInkomen, // This is the adjusted income after VAT
     totaleTanken,
     totaleBankkosten,
     totaleAutogarage,
@@ -229,8 +233,10 @@ export const generateAnnualReport = async (
     
     const prompt = `Maak een professionele jaarrekening in tekst formaat voor het jaar ${year}. Gebruik de volgende gegevens:
 
-INKOMSTEN:
-Totaal Inkomsten: ${formatCurrency(totals.brutowinst)}
+INKOMSTEN (na aftrek BTW):
+Bruto Inkomsten: ${formatCurrency(totals.totalGrossIncome)}
+Af: BTW te betalen: ${formatCurrency(totals.btwTeBetalen)}
+Netto Inkomsten: ${formatCurrency(totals.nettoInkomen)}
 (Gebaseerd op ${incomes.length} inkomsten posten)
 
 KOSTEN:
@@ -245,7 +251,7 @@ BTW OVERZICHT:
 - BTW te vorderen: ${formatCurrency(totals.btwTeVorderen)}
 - Netto BTW: ${formatCurrency(totals.nettoBtw)}
 
-Maak hiervan een nette, professionele jaarrekening in tekst formaat. Gebruik een duidelijke structuur met kopjes en zorg voor een professionele uitstraling. Retourneer alleen de geformatteerde tekst, geen andere uitleg.`;
+Maak hiervan een nette, professionele jaarrekening in tekst formaat. Gebruik een duidelijke structuur met kopjes en zorg voor een professionele uitstraling. Begin met de netto inkomsten (${formatCurrency(totals.nettoInkomen)}) als uitgangspunt voor de berekening. Retourneer alleen de geformatteerde tekst, geen andere uitleg.`;
 
     const messages = [
       {

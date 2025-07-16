@@ -2,9 +2,12 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { TouchableOpacity } from 'react-native';
 import { Settings, PieChart, TrendingUp, TrendingDown } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 import Colors from '@/constants/colors';
 
 export default function TabLayout() {
+  const router = useRouter();
+  
   return (
     <Tabs
       screenOptions={{
@@ -32,7 +35,7 @@ export default function TabLayout() {
         headerRight: () => (
           <TouchableOpacity
             style={{ marginRight: 15 }}
-            onPress={() => {}}
+            onPress={() => router.push('/profile')}
           >
             <Settings size={24} color={Colors.text} />
           </TouchableOpacity>

@@ -38,7 +38,8 @@ Categorieën:
 - overige: Alles wat niet in bovenstaande categorieën past
 
 Uitgaven lijst:
-${expenseNames.map(expense => `ID: ${expense.id} - Naam: ${expense.name}`).join('\n')}
+${expenseNames.map(expense => `ID: ${expense.id} - Naam: ${expense.name}`).join('
+')}
 
 Geef je antwoord terug als een JSON object met de volgende structuur:
 {
@@ -109,9 +110,9 @@ Retourneer alleen het JSON object, geen andere tekst.`;
           });
 
           // Add any uncategorized expenses to "overige"
-          expenses.forEach(expense => {
+          expenses.forEach((expense: FinanceEntry) => {
             const isAlreadyCategorized = Object.values(result).some(category => 
-              category.some(e => e.id === expense.id)
+              category.some((e: FinanceEntry) => e.id === expense.id)
             );
             if (!isAlreadyCategorized) {
               result.overige.push(expense);
@@ -215,22 +216,28 @@ Totaal Inkomsten: ${formatCurrency(totals.brutowinst)}
 
 KOSTEN:
 Tanken: ${formatCurrency(totals.totaleTanken)}
-${categorizedExpenses.tanken.map(expense => `- ${expense.name}: ${formatCurrency(expense.amount)} (${new Date(expense.date).toLocaleDateString('nl-NL')})`).join('\n')}
+${categorizedExpenses.tanken.map(expense => `- ${expense.name}: ${formatCurrency(expense.amount)} (${new Date(expense.date).toLocaleDateString('nl-NL')})`).join('
+')}
 
 Bankkosten: ${formatCurrency(totals.totaleBankkosten)}
-${categorizedExpenses.bankkosten.map(expense => `- ${expense.name}: ${formatCurrency(expense.amount)} (${new Date(expense.date).toLocaleDateString('nl-NL')})`).join('\n')}
+${categorizedExpenses.bankkosten.map(expense => `- ${expense.name}: ${formatCurrency(expense.amount)} (${new Date(expense.date).toLocaleDateString('nl-NL')})`).join('
+')}
 
 Autogarage kosten: ${formatCurrency(totals.totaleAutogarage)}
-${categorizedExpenses.autogarage.map(expense => `- ${expense.name}: ${formatCurrency(expense.amount)} (${new Date(expense.date).toLocaleDateString('nl-NL')})`).join('\n')}
+${categorizedExpenses.autogarage.map(expense => `- ${expense.name}: ${formatCurrency(expense.amount)} (${new Date(expense.date).toLocaleDateString('nl-NL')})`).join('
+')}
 
 Verzekeringen: ${formatCurrency(totals.totaleVerzekeringen)}
-${categorizedExpenses.verzekeringen.map(expense => `- ${expense.name}: ${formatCurrency(expense.amount)} (${new Date(expense.date).toLocaleDateString('nl-NL')})`).join('\n')}
+${categorizedExpenses.verzekeringen.map(expense => `- ${expense.name}: ${formatCurrency(expense.amount)} (${new Date(expense.date).toLocaleDateString('nl-NL')})`).join('
+')}
 
 Telefoonkosten: ${formatCurrency(totals.totaleTelefoon)}
-${categorizedExpenses.telefoon.map(expense => `- ${expense.name}: ${formatCurrency(expense.amount)} (${new Date(expense.date).toLocaleDateString('nl-NL')})`).join('\n')}
+${categorizedExpenses.telefoon.map(expense => `- ${expense.name}: ${formatCurrency(expense.amount)} (${new Date(expense.date).toLocaleDateString('nl-NL')})`).join('
+')}
 
 Overige kosten: ${formatCurrency(totals.totaleOverige)}
-${categorizedExpenses.overige.map(expense => `- ${expense.name}: ${formatCurrency(expense.amount)} (${new Date(expense.date).toLocaleDateString('nl-NL')})`).join('\n')}
+${categorizedExpenses.overige.map(expense => `- ${expense.name}: ${formatCurrency(expense.amount)} (${new Date(expense.date).toLocaleDateString('nl-NL')})`).join('
+')}
 
 Totale Kosten: ${formatCurrency(totals.totaleKosten)}
 

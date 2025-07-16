@@ -1,42 +1,145 @@
 import { FinanceEntry } from '@/types/finance';
 import { formatCurrency } from '@/utils/finance';
-import { Platform } from 'react-native';
 
-interface AnnualReportData {
-  year: number;
-  incomes: FinanceEntry[];
-  expenses: {
-    tanken: FinanceEntry[];
-    bankkosten: FinanceEntry[];
-    autogarage: FinanceEntry[];
-    verzekeringen: FinanceEntry[];
-    telefoon: FinanceEntry[];
-    overige: FinanceEntry[];
-  };
-  totals: {
-    brutowinst: number;
-    totaleTanken: number;
-    totaleBankkosten: number;
-    totaleAutogarage: number;
-    totaleVerzekeringen: number;
-    totaleTelefoon: number;
-    totaleOverige: number;
-    totaleKosten: number;
-    nettoResultaat: number;
-    btwTeBetalen: number;
-    btwTeVorderen: number;
-    nettoBtw: number;
-  };
+interface CategorizedExpenses {
+  tanken: FinanceEntry[];
+  bankkosten: FinanceEntry[];
+  autogarage: FinanceEntry[];
+  verzekeringen: FinanceEntry[];
+  telefoon: FinanceEntry[];
+  overige: FinanceEntry[];
 }
 
-const categorizeExpenses = (expenses: FinanceEntry[]) => {
-  const categories = {
-    tanken: [] as FinanceEntry[],
-    bankkosten: [] as FinanceEntry[],
-    autogarage: [] as FinanceEntry[],
-    verzekeringen: [] as FinanceEntry[],
-    telefoon: [] as FinanceEntry[],
-    overige: [] as FinanceEntry[],
+const categorizeExpensesWithAI = async (expenses: FinanceEntry[], apiKey: string): Promise<CategorizedExpenses> => {
+  if (expenses.length === 0) {
+    return {
+      tanken: [],
+      bankkosten: [],
+      autogarage: [],
+      verzekeringen: [],
+      telefoon: [],
+      overige: [],
+    };
+  }
+
+  const expenseNames = expenses.map(expense => ({
+    id: expense.id,
+    name: expense.name,
+  }));
+
+  const categorizationPrompt = `Ik heb een lijst met uitgaven namen. Zoek elke naam op internet om te begrijpen wat voor soort bedrijf of uitgave het is, en categoriseer ze in een van deze categorieën:
+
+Categorieën:
+- tanken: Tankstations, brandstof, benzine, diesel
+- bankkosten: Bankkosten, rente, financiële diensten
+- autogarage: Autogarages, reparaties, onderhoud, autoparten
+- verzekeringen: Verzekeringen, polissen
+- telefoon: Telefoon, internet, telecom diensten
+- overige: Alles wat niet in bovenstaande categorieën past
+
+Uitgaven lijst:
+${expenseNames.map(expense => `ID: ${expense.id} - Naam: ${expense.name}`).join('\n')}
+
+Geef je antwoord terug als een JSON object met de volgende structuur:
+{
+  "tanken": ["id1", "id2"],
+  "bankkosten": ["id3"],
+  "autogarage": ["id4", "id5"],
+  "verzekeringen": ["id6"],
+  "telefoon": ["id7"],
+  "overige": ["id8", "id9"]
+}
+
+Retourneer alleen het JSON object, geen andere tekst.`;
+
+  try {
+    const messages = [
+      {
+        role: 'system',
+        content: 'Je bent een expert in het categoriseren van bedrijfsuitgaven. Zoek bedrijfsnamen op internet om hun activiteiten te begrijpen en categoriseer ze correct.',
+      },
+      {
+        role: 'user',
+        content: categorizationPrompt,
+      },
+    ];
+
+    const response = await fetch('https://toolkit.rork.com/text/llm/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ messages }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (data.completion) {
+      try {
+        const jsonStart = data.completion.indexOf('{');
+        const jsonEnd = data.completion.lastIndexOf('}') + 1;
+        
+        if (jsonStart >= 0 && jsonEnd > jsonStart) {
+          const jsonStr = data.completion.substring(jsonStart, jsonEnd);
+          const categorization = JSON.parse(jsonStr);
+          
+          // Map the categorized IDs back to expense objects
+          const result: CategorizedExpenses = {
+            tanken: [],
+            bankkosten: [],
+            autogarage: [],
+            verzekeringen: [],
+            telefoon: [],
+            overige: [],
+          };
+
+          Object.keys(categorization).forEach(category => {
+            if (result[category as keyof CategorizedExpenses]) {
+              categorization[category].forEach((id: string) => {
+                const expense = expenses.find(e => e.id === id);
+                if (expense) {
+                  result[category as keyof CategorizedExpenses].push(expense);
+                }
+              });
+            }
+          });
+
+          // Add any uncategorized expenses to "overige"
+          expenses.forEach(expense => {
+            const isAlreadyCategorized = Object.values(result).some(category => 
+              category.some(e => e.id === expense.id)
+            );
+            if (!isAlreadyCategorized) {
+              result.overige.push(expense);
+            }
+          });
+
+          return result;
+        }
+      } catch (parseError) {
+        console.error('Error parsing categorization JSON:', parseError);
+      }
+    }
+  } catch (error) {
+    console.error('Error categorizing expenses with AI:', error);
+  }
+
+  // Fallback to simple categorization if AI fails
+  return categorizeExpensesSimple(expenses);
+};
+
+const categorizeExpensesSimple = (expenses: FinanceEntry[]): CategorizedExpenses => {
+  const categories: CategorizedExpenses = {
+    tanken: [],
+    bankkosten: [],
+    autogarage: [],
+    verzekeringen: [],
+    telefoon: [],
+    overige: [],
   };
 
   expenses.forEach(expense => {
@@ -60,7 +163,7 @@ const categorizeExpenses = (expenses: FinanceEntry[]) => {
   return categories;
 };
 
-const calculateTotals = (incomes: FinanceEntry[], categorizedExpenses: ReturnType<typeof categorizeExpenses>) => {
+const calculateTotals = (incomes: FinanceEntry[], categorizedExpenses: CategorizedExpenses) => {
   const brutowinst = incomes.reduce((sum, income) => sum + income.amount, 0);
   const btwTeBetalen = incomes.reduce((sum, income) => sum + income.vatAmount, 0);
   
@@ -100,39 +203,33 @@ export const generateAnnualReport = async (
   apiKey: string
 ): Promise<string> => {
   try {
-    const categorizedExpenses = categorizeExpenses(expenses);
+    // Use AI to categorize expenses
+    const categorizedExpenses = await categorizeExpensesWithAI(expenses, apiKey);
     const totals = calculateTotals(incomes, categorizedExpenses);
-    
-    const reportData: AnnualReportData = {
-      year,
-      incomes,
-      expenses: categorizedExpenses,
-      totals,
-    };
     
     const prompt = `Maak een professionele jaarrekening in tekst formaat voor het jaar ${year}. Gebruik de volgende gegevens:
 
-BRUTOWINST:
-${incomes.map(income => `- ${income.name}: ${formatCurrency(income.amount)} (${new Date(income.date).toLocaleDateString('nl-NL')})`).join('\n')}
-Totaal Brutowinst: ${formatCurrency(totals.brutowinst)}
+INKOMSTEN:
+Totaal Inkomsten: ${formatCurrency(totals.brutowinst)}
+(Gebaseerd op ${incomes.length} inkomsten posten)
 
 KOSTEN:
-Tanken (${formatCurrency(totals.totaleTanken)}):
+Tanken: ${formatCurrency(totals.totaleTanken)}
 ${categorizedExpenses.tanken.map(expense => `- ${expense.name}: ${formatCurrency(expense.amount)} (${new Date(expense.date).toLocaleDateString('nl-NL')})`).join('\n')}
 
-Bankkosten (${formatCurrency(totals.totaleBankkosten)}):
+Bankkosten: ${formatCurrency(totals.totaleBankkosten)}
 ${categorizedExpenses.bankkosten.map(expense => `- ${expense.name}: ${formatCurrency(expense.amount)} (${new Date(expense.date).toLocaleDateString('nl-NL')})`).join('\n')}
 
-Autogarage kosten (${formatCurrency(totals.totaleAutogarage)}):
+Autogarage kosten: ${formatCurrency(totals.totaleAutogarage)}
 ${categorizedExpenses.autogarage.map(expense => `- ${expense.name}: ${formatCurrency(expense.amount)} (${new Date(expense.date).toLocaleDateString('nl-NL')})`).join('\n')}
 
-Verzekeringen (${formatCurrency(totals.totaleVerzekeringen)}):
+Verzekeringen: ${formatCurrency(totals.totaleVerzekeringen)}
 ${categorizedExpenses.verzekeringen.map(expense => `- ${expense.name}: ${formatCurrency(expense.amount)} (${new Date(expense.date).toLocaleDateString('nl-NL')})`).join('\n')}
 
-Telefoonkosten (${formatCurrency(totals.totaleTelefoon)}):
+Telefoonkosten: ${formatCurrency(totals.totaleTelefoon)}
 ${categorizedExpenses.telefoon.map(expense => `- ${expense.name}: ${formatCurrency(expense.amount)} (${new Date(expense.date).toLocaleDateString('nl-NL')})`).join('\n')}
 
-Overige kosten (${formatCurrency(totals.totaleOverige)}):
+Overige kosten: ${formatCurrency(totals.totaleOverige)}
 ${categorizedExpenses.overige.map(expense => `- ${expense.name}: ${formatCurrency(expense.amount)} (${new Date(expense.date).toLocaleDateString('nl-NL')})`).join('\n')}
 
 Totale Kosten: ${formatCurrency(totals.totaleKosten)}

@@ -15,7 +15,7 @@ import {
 import { Calendar, Camera, X, Send } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
-import { CameraView, CameraType } from 'expo-camera';
+import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { Image } from 'expo-image';
 import Colors from '@/constants/colors';
 import { useFinanceStore } from '@/store/financeStore';
@@ -35,7 +35,7 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [showCamera, setShowCamera] = useState(false);
-  const [cameraPermission, requestCameraPermission] = ImagePicker.useCameraPermissions();
+  const [permission, requestPermission] = useCameraPermissions();
   const [isProcessing, setIsProcessing] = useState(false);
   const [facing, setFacing] = useState<CameraType>('back');
   
@@ -63,9 +63,14 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
   };
   
   const handleDateChange = (event: any, selectedDate?: Date) => {
-    setShowDatePicker(false);
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+    }
     if (selectedDate) {
       setDate(selectedDate);
+      if (Platform.OS === 'ios') {
+        setShowDatePicker(false);
+      }
     }
   };
   
@@ -93,9 +98,9 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
   };
   
   const openCamera = async () => {
-    if (!cameraPermission?.granted) {
-      const permission = await requestCameraPermission();
-      if (!permission.granted) {
+    if (!permission?.granted) {
+      const permissionResult = await requestPermission();
+      if (!permissionResult.granted) {
         Alert.alert('Toestemming vereist', 'Camera toestemming is nodig om foto\'s te maken');
         return;
       }
@@ -107,7 +112,10 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
     if (!cameraRef.current) return;
     
     try {
-      const photo = await cameraRef.current.takePictureAsync();
+      const photo = await cameraRef.current.takePictureAsync({
+        quality: 0.8,
+        base64: false,
+      });
       if (photo) {
         setImageUri(photo.uri);
         setShowCamera(false);
@@ -119,6 +127,13 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
   };
   
   const pickImage = async () => {
+    // Request permission for image library
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Toestemming vereist', 'Toegang tot fotobibliotheek is nodig om afbeeldingen te selecteren');
+      return;
+    }
+    
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -134,7 +149,7 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
     if (!imageUri) return;
     
     if (!apiKey) {
-      Alert.alert('API Sleutel Ontbreekt', 'Stel je ChatGPT API sleutel in bij instellingen');
+      Alert.alert('API Sleutel Ontbreekt', 'Stel je ChatGPT API sleutel in bij profiel instellingen');
       return;
     }
     
@@ -145,7 +160,7 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
       
       if (result) {
         setName(result.name || '');
-        setAmount(result.amount ? result.amount.toString() : '');
+        setAmount(result.amount ? result.amount.toString().replace('.', ',') : '');
         if (result.vatRate) setVatRate(result.vatRate.toString());
         if (result.date) {
           setDate(new Date(result.date));
@@ -154,7 +169,7 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
       }
     } catch (error) {
       console.error('Error processing receipt:', error);
-      Alert.alert('Fout', 'Kon bon niet verwerken');
+      Alert.alert('Fout', 'Kon bon niet verwerken. Controleer je internetverbinding en API sleutel.');
     } finally {
       setIsProcessing(false);
     }
@@ -169,7 +184,7 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
     >
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -182,13 +197,14 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
               </TouchableOpacity>
             </View>
             
-            <ScrollView style={styles.formContainer}>
+            <ScrollView style={styles.formContainer} showsVerticalScrollIndicator={false}>
               <Text style={styles.label}>Naam</Text>
               <TextInput
                 style={styles.input}
                 value={name}
                 onChangeText={setName}
                 placeholder="Voer naam in"
+                placeholderTextColor={Colors.lightText}
               />
               
               <Text style={styles.label}>Bedrag (€)</Text>
@@ -197,6 +213,7 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
                 value={amount}
                 onChangeText={setAmount}
                 placeholder="0,00"
+                placeholderTextColor={Colors.lightText}
                 keyboardType="decimal-pad"
               />
               
@@ -238,8 +255,9 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
                 <DateTimePicker
                   value={date}
                   mode="date"
-                  display="default"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                   onChange={handleDateChange}
+                  maximumDate={new Date()}
                 />
               )}
               
@@ -315,34 +333,46 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
       
       <Modal visible={showCamera} animationType="slide">
         <View style={{ flex: 1 }}>
-          <CameraView
-            ref={cameraRef}
-            style={{ flex: 1 }}
-            facing={facing}
-          >
-            <View style={styles.cameraControls}>
+          {Platform.OS !== 'web' ? (
+            <CameraView
+              ref={cameraRef}
+              style={{ flex: 1 }}
+              facing={facing}
+            >
+              <View style={styles.cameraControls}>
+                <TouchableOpacity
+                  style={styles.cameraButton}
+                  onPress={() => setShowCamera(false)}
+                >
+                  <X size={24} color={Colors.secondary} />
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={styles.captureButton}
+                  onPress={takePicture}
+                >
+                  <View style={styles.captureButtonInner} />
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={styles.cameraButton}
+                  onPress={() => setFacing(facing === 'back' ? 'front' : 'back')}
+                >
+                  <Camera size={24} color={Colors.secondary} />
+                </TouchableOpacity>
+              </View>
+            </CameraView>
+          ) : (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+              <Text>Camera niet beschikbaar op web</Text>
               <TouchableOpacity
-                style={styles.cameraButton}
+                style={styles.submitButton}
                 onPress={() => setShowCamera(false)}
               >
-                <X size={24} color={Colors.secondary} />
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={styles.captureButton}
-                onPress={takePicture}
-              >
-                <View style={styles.captureButtonInner} />
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={styles.cameraButton}
-                onPress={() => setFacing(facing === 'back' ? 'front' : 'back')}
-              >
-                <Camera size={24} color={Colors.secondary} />
+                <Text style={styles.submitButtonText}>Sluiten</Text>
               </TouchableOpacity>
             </View>
-          </CameraView>
+          )}
         </View>
       </Modal>
     </Modal>
@@ -395,6 +425,7 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 16,
     marginBottom: 16,
+    color: Colors.text,
   },
   vatRateContainer: {
     flexDirection: 'row',

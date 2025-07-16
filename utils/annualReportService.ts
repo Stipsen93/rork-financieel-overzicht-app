@@ -1,5 +1,6 @@
 import { FinanceEntry } from '@/types/finance';
 import { formatCurrency } from '@/utils/finance';
+import { Platform } from 'react-native';
 
 interface AnnualReportData {
   year: number;
@@ -173,11 +174,21 @@ Maak hiervan een nette, professionele jaarrekening in PDF formaat. Gebruik een d
     if (data.completion) {
       // Extract base64 PDF data from the response
       // The AI should return just the base64 data, but we'll clean it up just in case
-      const base64Data = data.completion.replace(/[^A-Za-z0-9+/=]/g, '');
+      let base64Data = data.completion.trim();
+      
+      // Remove any markdown formatting or extra text
+      const base64Match = base64Data.match(/[A-Za-z0-9+/=]{100,}/);
+      if (base64Match) {
+        base64Data = base64Match[0];
+      }
+      
+      // Clean up any remaining non-base64 characters
+      base64Data = base64Data.replace(/[^A-Za-z0-9+/=]/g, '');
+      
       return base64Data;
     }
     
-    throw new Error('No PDF data received from AI');
+    throw new Error('Geen PDF data ontvangen van AI');
   } catch (error) {
     console.error('Error generating annual report:', error);
     throw error;

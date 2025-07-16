@@ -53,20 +53,25 @@ export default function AnnualReportScreen() {
         Alert.alert('Succes', 'Jaarrekening gedownload!');
       } else {
         // For mobile, save to device and share
-        const fileUri = `${FileSystem.documentDirectory}Jaarrekening_${selectedYear}.pdf`;
+        const fileName = `Jaarrekening_${selectedYear}.pdf`;
+        const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+        
         await FileSystem.writeAsStringAsync(fileUri, pdfBase64, {
           encoding: FileSystem.EncodingType.Base64,
         });
         
         if (await Sharing.isAvailableAsync()) {
-          await Sharing.shareAsync(fileUri);
+          await Sharing.shareAsync(fileUri, {
+            mimeType: 'application/pdf',
+            dialogTitle: 'Jaarrekening delen',
+          });
         } else {
-          Alert.alert('Succes', `Jaarrekening opgeslagen: ${fileUri}`);
+          Alert.alert('Succes', `Jaarrekening opgeslagen in: ${fileName}`);
         }
       }
     } catch (error) {
       console.error('Error generating annual report:', error);
-      Alert.alert('Fout', 'Kon jaarrekening niet genereren. Probeer het opnieuw.');
+      Alert.alert('Fout', 'Kon jaarrekening niet genereren. Controleer je internetverbinding en API sleutel.');
     } finally {
       setIsGenerating(false);
     }

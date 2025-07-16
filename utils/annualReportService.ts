@@ -207,6 +207,26 @@ export const generateAnnualReport = async (
     const categorizedExpenses = await categorizeExpensesWithAI(expenses, apiKey);
     const totals = calculateTotals(incomes, categorizedExpenses);
     
+    const expenseDetails = [
+      `Tanken: ${formatCurrency(totals.totaleTanken)}`,
+      ...categorizedExpenses.tanken.map(expense => `- ${expense.name}: ${formatCurrency(expense.amount)} (${new Date(expense.date).toLocaleDateString('nl-NL')})`),
+      '',
+      `Bankkosten: ${formatCurrency(totals.totaleBankkosten)}`,
+      ...categorizedExpenses.bankkosten.map(expense => `- ${expense.name}: ${formatCurrency(expense.amount)} (${new Date(expense.date).toLocaleDateString('nl-NL')})`),
+      '',
+      `Autogarage kosten: ${formatCurrency(totals.totaleAutogarage)}`,
+      ...categorizedExpenses.autogarage.map(expense => `- ${expense.name}: ${formatCurrency(expense.amount)} (${new Date(expense.date).toLocaleDateString('nl-NL')})`),
+      '',
+      `Verzekeringen: ${formatCurrency(totals.totaleVerzekeringen)}`,
+      ...categorizedExpenses.verzekeringen.map(expense => `- ${expense.name}: ${formatCurrency(expense.amount)} (${new Date(expense.date).toLocaleDateString('nl-NL')})`),
+      '',
+      `Telefoonkosten: ${formatCurrency(totals.totaleTelefoon)}`,
+      ...categorizedExpenses.telefoon.map(expense => `- ${expense.name}: ${formatCurrency(expense.amount)} (${new Date(expense.date).toLocaleDateString('nl-NL')})`),
+      '',
+      `Overige kosten: ${formatCurrency(totals.totaleOverige)}`,
+      ...categorizedExpenses.overige.map(expense => `- ${expense.name}: ${formatCurrency(expense.amount)} (${new Date(expense.date).toLocaleDateString('nl-NL')})`),
+    ].join('\n');
+    
     const prompt = `Maak een professionele jaarrekening in tekst formaat voor het jaar ${year}. Gebruik de volgende gegevens:
 
 INKOMSTEN:
@@ -214,23 +234,7 @@ Totaal Inkomsten: ${formatCurrency(totals.brutowinst)}
 (Gebaseerd op ${incomes.length} inkomsten posten)
 
 KOSTEN:
-Tanken: ${formatCurrency(totals.totaleTanken)}
-${categorizedExpenses.tanken.map(expense => `- ${expense.name}: ${formatCurrency(expense.amount)} (${new Date(expense.date).toLocaleDateString('nl-NL')})`).join('\n')}
-
-Bankkosten: ${formatCurrency(totals.totaleBankkosten)}
-${categorizedExpenses.bankkosten.map(expense => `- ${expense.name}: ${formatCurrency(expense.amount)} (${new Date(expense.date).toLocaleDateString('nl-NL')})`).join('\n')}
-
-Autogarage kosten: ${formatCurrency(totals.totaleAutogarage)}
-${categorizedExpenses.autogarage.map(expense => `- ${expense.name}: ${formatCurrency(expense.amount)} (${new Date(expense.date).toLocaleDateString('nl-NL')})`).join('\n')}
-
-Verzekeringen: ${formatCurrency(totals.totaleVerzekeringen)}
-${categorizedExpenses.verzekeringen.map(expense => `- ${expense.name}: ${formatCurrency(expense.amount)} (${new Date(expense.date).toLocaleDateString('nl-NL')})`).join('\n')}
-
-Telefoonkosten: ${formatCurrency(totals.totaleTelefoon)}
-${categorizedExpenses.telefoon.map(expense => `- ${expense.name}: ${formatCurrency(expense.amount)} (${new Date(expense.date).toLocaleDateString('nl-NL')})`).join('\n')}
-
-Overige kosten: ${formatCurrency(totals.totaleOverige)}
-${categorizedExpenses.overige.map(expense => `- ${expense.name}: ${formatCurrency(expense.amount)} (${new Date(expense.date).toLocaleDateString('nl-NL')})`).join('\n')}
+${expenseDetails}
 
 Totale Kosten: ${formatCurrency(totals.totaleKosten)}
 

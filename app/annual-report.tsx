@@ -40,29 +40,32 @@ export default function AnnualReportScreen() {
     setIsGenerating(true);
     
     try {
-      const pdfBase64 = await generateAnnualReport(yearIncomes, yearExpenses, selectedYear, apiKey);
+      const reportText = await generateAnnualReport(yearIncomes, yearExpenses, selectedYear, apiKey);
       
       if (Platform.OS === 'web') {
-        // For web, create a download link
+        // For web, create a download link for text file
+        const blob = new Blob([reportText], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
-        link.href = `data:application/pdf;base64,${pdfBase64}`;
-        link.download = `Jaarrekening_${selectedYear}.pdf`;
+        link.href = url;
+        link.download = `Jaarrekening_${selectedYear}.txt`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        URL.revokeObjectURL(url);
         Alert.alert('Succes', 'Jaarrekening gedownload!');
       } else {
         // For mobile, save to device and share
-        const fileName = `Jaarrekening_${selectedYear}.pdf`;
+        const fileName = `Jaarrekening_${selectedYear}.txt`;
         const fileUri = `${FileSystem.documentDirectory}${fileName}`;
         
-        await FileSystem.writeAsStringAsync(fileUri, pdfBase64, {
-          encoding: FileSystem.EncodingType.Base64,
+        await FileSystem.writeAsStringAsync(fileUri, reportText, {
+          encoding: FileSystem.EncodingType.UTF8,
         });
         
         if (await Sharing.isAvailableAsync()) {
           await Sharing.shareAsync(fileUri, {
-            mimeType: 'application/pdf',
+            mimeType: 'text/plain',
             dialogTitle: 'Jaarrekening delen',
           });
         } else {
@@ -155,7 +158,9 @@ export default function AnnualReportScreen() {
           &nbsp;&nbsp;- Telefoonkosten{'\n'}
           &nbsp;&nbsp;- Overige kosten{'\n'}
           • BTW overzicht{'\n'}
-          • Netto resultaat
+          • Netto resultaat{'\n'}
+          {'\n'}
+          Het rapport wordt gegenereerd als tekstbestand dat je kunt delen of opslaan.
         </Text>
       </View>
     </ScrollView>

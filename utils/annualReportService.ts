@@ -110,7 +110,7 @@ export const generateAnnualReport = async (
       totals,
     };
     
-    const prompt = `Maak een professionele jaarrekening in PDF formaat voor het jaar ${year}. Gebruik de volgende gegevens:
+    const prompt = `Maak een professionele jaarrekening in tekst formaat voor het jaar ${year}. Gebruik de volgende gegevens:
 
 BRUTOWINST:
 ${incomes.map(income => `- ${income.name}: ${formatCurrency(income.amount)} (${new Date(income.date).toLocaleDateString('nl-NL')})`).join('\n')}
@@ -144,12 +144,12 @@ BTW OVERZICHT:
 - BTW te vorderen: ${formatCurrency(totals.btwTeVorderen)}
 - Netto BTW: ${formatCurrency(totals.nettoBtw)}
 
-Maak hiervan een nette, professionele jaarrekening in PDF formaat. Gebruik een duidelijke structuur met kopjes, tabellen waar nodig, en zorg voor een professionele uitstraling. Retourneer alleen de base64 encoded PDF data, geen andere tekst.`;
+Maak hiervan een nette, professionele jaarrekening in tekst formaat. Gebruik een duidelijke structuur met kopjes en zorg voor een professionele uitstraling. Retourneer alleen de geformatteerde tekst, geen andere uitleg.`;
 
     const messages = [
       {
         role: 'system',
-        content: 'Je bent een professionele boekhouder die jaarrekeningen maakt. Maak een nette PDF jaarrekening op basis van de gegeven financiële gegevens. Retourneer alleen de base64 encoded PDF data.',
+        content: 'Je bent een professionele boekhouder die jaarrekeningen maakt. Maak een nette tekst-gebaseerde jaarrekening op basis van de gegeven financiële gegevens. Gebruik duidelijke formatting met lijnen, spaties en kopjes voor een professionele uitstraling.',
       },
       {
         role: 'user',
@@ -172,23 +172,10 @@ Maak hiervan een nette, professionele jaarrekening in PDF formaat. Gebruik een d
     const data = await response.json();
     
     if (data.completion) {
-      // Extract base64 PDF data from the response
-      // The AI should return just the base64 data, but we'll clean it up just in case
-      let base64Data = data.completion.trim();
-      
-      // Remove any markdown formatting or extra text
-      const base64Match = base64Data.match(/[A-Za-z0-9+/=]{100,}/);
-      if (base64Match) {
-        base64Data = base64Match[0];
-      }
-      
-      // Clean up any remaining non-base64 characters
-      base64Data = base64Data.replace(/[^A-Za-z0-9+/=]/g, '');
-      
-      return base64Data;
+      return data.completion.trim();
     }
     
-    throw new Error('Geen PDF data ontvangen van AI');
+    throw new Error('Geen rapport data ontvangen van AI');
   } catch (error) {
     console.error('Error generating annual report:', error);
     throw error;

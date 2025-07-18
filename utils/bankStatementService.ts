@@ -90,22 +90,43 @@ ${imageFiles.length > 0 ? `AFBEELDING BESTANDEN (${imageFiles.length}):` : ''}`
     const messages: CoreMessage[] = [
       {
         role: 'system',
-        content: `Je bent een expert in het lezen van bankafschriften in zowel afbeelding als PDF formaat. Analyseer ${files.length > 1 ? 'alle bankafschriften' : 'het bankafschrift'} en extraheer alle transacties.
+        content: `Je bent een expert in het lezen van Nederlandse bankafschriften van alle grote banken (ING, Rabobank, ABN AMRO, SNS, etc.) in zowel afbeelding als PDF formaat. 
 
-BELANGRIJK: Negeer alle transacties die gaan naar of van spaarrekeningen. Dit zijn interne overboekingen en geen echte inkomsten of uitgaven.
+BELANGRIJKE INSTRUCTIES:
+
+1. NEGEER SPAARREKENING TRANSACTIES: Negeer alle transacties die gaan naar of van spaarrekeningen, beleggingsrekeningen, of andere eigen rekeningen. Dit zijn interne overboekingen en geen echte inkomsten of uitgaven.
+
+2. VERSCHILLENDE BANKFORMATEN: Elk bankafschrift heeft een ander formaat:
+   - ING: Gebruikt vaak tabellen met kolommen voor datum, beschrijving, bedrag, saldo
+   - Rabobank: Heeft een andere layout met transactiedetails
+   - ABN AMRO: Weer een ander formaat
+   - Lees ALLE tekst in het document, ook als het in tabelvorm staat
+
+3. PDF VERWERKING: Voor PDF bestanden:
+   - De PDF inhoud is als base64 data verstrekt
+   - Extraheer ALLE tekst uit het PDF bestand
+   - Lees alle pagina's als er meerdere zijn
+   - Zoek naar transactietabellen, lijsten, of andere formaten
+
+4. TRANSACTIE IDENTIFICATIE:
+   - Zoek naar datums (DD-MM-YYYY, DD/MM/YYYY, etc.)
+   - Zoek naar bedragen (met + of - teken, of in aparte kolommen)
+   - Zoek naar beschrijvingen van transacties
+   - Let op verschillende valuta notaties (€, EUR)
 
 Voorbeelden van transacties die je MOET NEGEREN:
-- Overboekingen naar spaarrekening
-- Overboekingen van spaarrekening
-- Transfers naar/van eigen rekeningen
-- Interne bankoverboekingen tussen eigen rekeningen
-- Spaarrente (dit is geen bedrijfsinkomen)
+- "Overboeking naar spaarrekening"
+- "Van spaarrekening"
+- "Naar beleggingsrekening"
+- "Interne overboeking"
+- "Transfer eigen rekening"
+- Transacties tussen eigen rekeningnummers
 
 Voor elke ECHTE transactie heb ik nodig:
 1. Datum (YYYY-MM-DD formaat)
-2. Beschrijving/naam van de transactie
+2. Beschrijving/naam van de transactie (volledige beschrijving)
 3. Bedrag (positief voor inkomsten, negatief voor uitgaven)
-4. BTW tarief (schat in op basis van het type transactie: 21% voor meeste diensten, 9% voor voedsel/boeken, 0% voor bankkosten/rente)
+4. BTW tarief (schat in: 21% voor meeste diensten, 9% voor voedsel/boeken, 0% voor bankkosten/rente)
 
 ${files.length > 1 ? 
   'Combineer alle transacties van alle bankafschriften (zowel PDF als afbeeldingen) in één lijst.' : 
@@ -115,31 +136,34 @@ ${files.length > 1 ?
 Focus alleen op:
 - Betalingen van klanten (inkomsten)
 - Zakelijke uitgaven (brandstof, kantoorbenodigdheden, etc.)
-- Bankkosten
+- Bankkosten en administratiekosten
 - Verzekeringen
 - Andere bedrijfsgerelateerde transacties
+- Pinbetalingen en online betalingen
+- Automatische incasso's voor zakelijke doeleinden
 
-Voor PDF bestanden: De PDF inhoud is als base64 data verstrekt. Decodeer en lees de volledige inhoud van elk PDF bestand en extraheer alle transacties uit alle pagina's.
-Voor afbeeldingen: Analyseer elke afbeelding en extraheer alle zichtbare transacties.
-
-Retourneer je antwoord als een JSON array met deze structuur:
+Retourneer je antwoord als een JSON array met deze exacte structuur:
 [
   {
     "date": "2024-01-15",
-    "description": "Klant betaling",
+    "description": "Klant betaling factuur 2024-001",
     "amount": 1250.00,
     "vatRate": 21
   },
   {
     "date": "2024-01-16", 
-    "description": "Tankstation Shell",
+    "description": "Shell tankstation Amsterdam",
     "amount": -85.50,
     "vatRate": 21
   }
 ]
 
-Negeer saldo's, totalen, en spaarrekening transacties. Focus alleen op echte bedrijfstransacties.
-Retourneer alleen het JSON array, geen andere tekst.`,
+BELANGRIJK: 
+- Retourneer alleen het JSON array, geen andere tekst
+- Gebruik volledige beschrijvingen zoals ze in het bankafschrift staan
+- Controleer alle pagina's van PDF bestanden
+- Negeer saldo's, totalen, en spaarrekening transacties
+- Als je geen transacties vindt, retourneer een lege array: []`,
       },
       {
         role: 'user',
@@ -187,7 +211,8 @@ Retourneer alleen het JSON array, geen andere tekst.`,
         }
       } catch (parseError) {
         console.error('Error parsing JSON from AI response:', parseError);
-        throw new Error('Kon transacties niet verwerken uit AI antwoord');
+        console.log('AI Response:', data.completion);
+        throw new Error('Kon transacties niet verwerken uit AI antwoord. Mogelijk is het PDF formaat niet ondersteund.');
       }
     }
     
@@ -216,11 +241,11 @@ const fileToBase64 = async (uri: string): Promise<string | null> => {
         encoding: FileSystem.EncodingType.Base64,
       });
       
-      // For PDFs, return raw base64 without data URL prefix
+      // For PDFs, return with proper data URL prefix for better AI processing
       // For images, include the data URL prefix
       const extension = uri.split('.').pop()?.toLowerCase();
       if (extension === 'pdf') {
-        return base64;
+        return `data:application/pdf;base64,${base64}`;
       } else {
         const mimeType = getMimeType(uri);
         return `data:${mimeType};base64,${base64}`;
@@ -240,13 +265,8 @@ const fetchFileAsBase64 = async (uri: string): Promise<string> => {
     const reader = new FileReader();
     reader.onload = () => {
       const result = reader.result as string;
-      // For PDFs on web, return raw base64 without data URL prefix
-      if (blob.type === 'application/pdf') {
-        const base64 = result.split(',')[1];
-        resolve(base64);
-      } else {
-        resolve(result);
-      }
+      // For PDFs on web, return with data URL prefix for better AI processing
+      resolve(result);
     };
     reader.onerror = reject;
     reader.readAsDataURL(blob);

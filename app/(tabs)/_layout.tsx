@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { Tabs } from 'expo-router';
 import { TouchableOpacity, View } from 'react-native';
 import { PieChart, TrendingUp, TrendingDown, Menu } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Colors from '@/constants/colors';
 import SlideMenu from '@/components/SlideMenu';
 
 export default function TabLayout() {
   const [menuVisible, setMenuVisible] = useState(false);
+  const insets = useSafeAreaInsets();
   
   return (
     <>
@@ -17,7 +19,9 @@ export default function TabLayout() {
           tabBarStyle: {
             backgroundColor: Colors.secondary,
             borderTopColor: Colors.border,
-            height: 60,
+            height: 60 + insets.bottom,
+            paddingBottom: insets.bottom,
+            paddingTop: 8,
           },
           tabBarLabelStyle: {
             fontSize: 12,

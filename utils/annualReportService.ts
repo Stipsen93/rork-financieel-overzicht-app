@@ -11,6 +11,15 @@ interface CategorizedExpenses {
   overige: FinanceEntry[];
 }
 
+type ContentPart =
+  | { type: 'text'; text: string; }
+  | { type: 'image'; image: string; };
+
+type CoreMessage =
+  | { role: 'system'; content: string; }
+  | { role: 'user'; content: string | Array<ContentPart>; }
+  | { role: 'assistant'; content: string | Array<ContentPart>; };
+
 const categorizeExpensesWithAI = async (
   expenses: FinanceEntry[], 
   apiKey: string,
@@ -58,7 +67,7 @@ Geef je antwoord terug als een JSON object met de volgende structuur:
 Retourneer alleen het JSON object, geen andere tekst.`;
 
   try {
-    const messages = [
+    const messages: CoreMessage[] = [
       {
         role: 'system',
         content: 'Je bent een expert in het categoriseren van bedrijfsuitgaven. Zoek bedrijfsnamen op internet om hun activiteiten te begrijpen en categoriseer ze correct.',
@@ -247,7 +256,7 @@ BTW OVERZICHT:
 
 Maak hiervan een nette, professionele jaarrekening in tekst formaat. Gebruik een duidelijke structuur met kopjes en zorg voor een professionele uitstraling. Begin met de netto inkomsten (${formatCurrency(totals.nettoInkomen)}) als uitgangspunt voor de berekening. Retourneer alleen de geformatteerde tekst, geen andere uitleg.`;
 
-    const messages = [
+    const messages: CoreMessage[] = [
       {
         role: 'system',
         content: 'Je bent een professionele boekhouder die jaarrekeningen maakt. Maak een nette tekst-gebaseerde jaarrekening op basis van de gegeven financiële gegevens. Gebruik duidelijke formatting met lijnen, spaties en kopjes voor een professionele uitstraling.',

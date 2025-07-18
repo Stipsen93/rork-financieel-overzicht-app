@@ -16,8 +16,7 @@ interface SelectedFile {
 
 type ContentPart =
   | { type: 'text'; text: string; }
-  | { type: 'image'; image: string; }
-  | { type: 'pdf'; pdf: string; };
+  | { type: 'image'; image: string; };
 
 type CoreMessage =
   | { role: 'system'; content: string; }
@@ -33,39 +32,59 @@ export const processBankStatements = async (
       throw new Error('Geen bestanden om te verwerken');
     }
 
-    // Convert all files to base64
-    const base64Files = await Promise.all(
-      files.map(async (file) => {
+    // Separate images and PDFs
+    const imageFiles = files.filter(f => f.type === 'image');
+    const pdfFiles = files.filter(f => f.type === 'pdf');
+
+    // Convert image files to base64
+    const base64Images = await Promise.all(
+      imageFiles.map(async (file) => {
         const base64 = await fileToBase64(file.uri);
         if (!base64) {
-          throw new Error(`Kon bestand niet converteren: ${file.uri}`);
+          throw new Error(`Kon afbeelding niet converteren: ${file.uri}`);
         }
-        return { base64, type: file.type, name: file.name };
+        return { base64, name: file.name };
+      })
+    );
+
+    // Convert PDF files to base64
+    const base64PDFs = await Promise.all(
+      pdfFiles.map(async (file) => {
+        const base64 = await fileToBase64(file.uri);
+        if (!base64) {
+          throw new Error(`Kon PDF niet converteren: ${file.uri}`);
+        }
+        return { base64, name: file.name };
       })
     );
     
     const contentParts: ContentPart[] = [
-      { type: 'text', text: `Analyseer ${files.length > 1 ? 'deze bankafschriften' : 'dit bankafschrift'} en extraheer alle transacties:` }
+      { 
+        type: 'text', 
+        text: `Analyseer ${files.length > 1 ? 'deze bankafschriften' : 'dit bankafschrift'} en extraheer alle transacties:
+
+${pdfFiles.length > 0 ? `
+PDF BESTANDEN (${pdfFiles.length}):
+${base64PDFs.map((pdf, index) => `
+PDF ${index + 1}${pdf.name ? ` (${pdf.name})` : ''}:
+${pdf.base64}
+`).join('')}
+` : ''}
+
+${imageFiles.length > 0 ? `AFBEELDING BESTANDEN (${imageFiles.length}):` : ''}`
+      }
     ];
 
-    // Add all files to the content
-    base64Files.forEach((file, index) => {
+    // Add image files to content
+    base64Images.forEach((image, index) => {
       contentParts.push({
         type: 'text',
-        text: `Bankafschrift ${index + 1} (${file.type === 'pdf' ? 'PDF' : 'Afbeelding'}${file.name ? ` - ${file.name}` : ''}):`
+        text: `Afbeelding ${index + 1}${image.name ? ` (${image.name})` : ''}:`
       });
-      
-      if (file.type === 'pdf') {
-        contentParts.push({
-          type: 'pdf',
-          pdf: file.base64
-        });
-      } else {
-        contentParts.push({
-          type: 'image',
-          image: file.base64
-        });
-      }
+      contentParts.push({
+        type: 'image',
+        image: image.base64
+      });
     });
 
     const messages: CoreMessage[] = [
@@ -100,8 +119,8 @@ Focus alleen op:
 - Verzekeringen
 - Andere bedrijfsgerelateerde transacties
 
-Voor PDF bestanden: Lees de volledige inhoud van het PDF bestand en extraheer alle transacties uit alle pagina's.
-Voor afbeeldingen: Analyseer de afbeelding en extraheer alle zichtbare transacties.
+Voor PDF bestanden: De PDF inhoud is als base64 data verstrekt. Decodeer en lees de volledige inhoud van elk PDF bestand en extraheer alle transacties uit alle pagina's.
+Voor afbeeldingen: Analyseer elke afbeelding en extraheer alle zichtbare transacties.
 
 Retourneer je antwoord als een JSON array met deze structuur:
 [
@@ -197,9 +216,15 @@ const fileToBase64 = async (uri: string): Promise<string | null> => {
         encoding: FileSystem.EncodingType.Base64,
       });
       
-      // Determine MIME type based on file extension
-      const mimeType = getMimeType(uri);
-      return `data:${mimeType};base64,${base64}`;
+      // For PDFs, return raw base64 without data URL prefix
+      // For images, include the data URL prefix
+      const extension = uri.split('.').pop()?.toLowerCase();
+      if (extension === 'pdf') {
+        return base64;
+      } else {
+        const mimeType = getMimeType(uri);
+        return `data:${mimeType};base64,${base64}`;
+      }
     }
   } catch (error) {
     console.error('Error converting file to base64:', error);
@@ -213,7 +238,16 @@ const fetchFileAsBase64 = async (uri: string): Promise<string> => {
   
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
+    reader.onload = () => {
+      const result = reader.result as string;
+      // For PDFs on web, return raw base64 without data URL prefix
+      if (blob.type === 'application/pdf') {
+        const base64 = result.split(',')[1];
+        resolve(base64);
+      } else {
+        resolve(result);
+      }
+    };
     reader.onerror = reject;
     reader.readAsDataURL(blob);
   });

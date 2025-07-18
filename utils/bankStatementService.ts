@@ -58,7 +58,16 @@ export const processBankStatements = async (
         role: 'system',
         content: `Je bent een expert in het lezen van bankafschriften. Analyseer ${fileUris.length > 1 ? 'alle bankafschriften' : 'het bankafschrift'} en extraheer alle transacties.
 
-Voor elke transactie heb ik nodig:
+BELANGRIJK: Negeer alle transacties die gaan naar of van spaarrekeningen. Dit zijn interne overboekingen en geen echte inkomsten of uitgaven.
+
+Voorbeelden van transacties die je MOET NEGEREN:
+- Overboekingen naar spaarrekening
+- Overboekingen van spaarrekening
+- Transfers naar/van eigen rekeningen
+- Interne bankoverboekingen tussen eigen rekeningen
+- Spaarrente (dit is geen bedrijfsinkomen)
+
+Voor elke ECHTE transactie heb ik nodig:
 1. Datum (YYYY-MM-DD formaat)
 2. Beschrijving/naam van de transactie
 3. Bedrag (positief voor inkomsten, negatief voor uitgaven)
@@ -68,6 +77,13 @@ ${fileUris.length > 1 ?
   'Combineer alle transacties van alle bankafschriften in één lijst.' : 
   'Extraheer alle transacties van dit bankafschrift.'
 }
+
+Focus alleen op:
+- Betalingen van klanten (inkomsten)
+- Zakelijke uitgaven (brandstof, kantoorbenodigdheden, etc.)
+- Bankkosten
+- Verzekeringen
+- Andere bedrijfsgerelateerde transacties
 
 Retourneer je antwoord als een JSON array met deze structuur:
 [
@@ -85,7 +101,7 @@ Retourneer je antwoord als een JSON array met deze structuur:
   }
 ]
 
-Negeer saldo's en totalen, focus alleen op individuele transacties.
+Negeer saldo's, totalen, en spaarrekening transacties. Focus alleen op echte bedrijfstransacties.
 Retourneer alleen het JSON array, geen andere tekst.`,
       },
       {

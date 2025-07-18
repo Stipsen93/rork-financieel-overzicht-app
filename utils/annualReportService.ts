@@ -43,8 +43,7 @@ Categorieën:
 - overige: Alles wat niet in bovenstaande categorieën past
 
 Uitgaven lijst:
-${expenseNames.map(expense => `ID: ${expense.id} - Naam: ${expense.name}`).join('
-')}
+${expenseNames.map(expense => `ID: ${expense.id} - Naam: ${expense.name}`).join('\n')}
 
 Geef je antwoord terug als een JSON object met de volgende structuur:
 {
@@ -224,8 +223,7 @@ export const generateAnnualReport = async (
       '',
       `Overige kosten: ${formatCurrency(totals.totaleOverige)}`,
       ...categorizedExpenses.overige.map(expense => `- ${expense.name}: ${formatCurrency(expense.amount)} (${new Date(expense.date).toLocaleDateString('nl-NL')})`),
-    ].join('
-');
+    ].join('\n');
     
     const prompt = `Maak een professionele jaarrekening in tekst formaat voor het jaar ${year}. Gebruik de volgende gegevens:
 

@@ -32,7 +32,8 @@ export const getQuarterName = (quarter: number): string => {
     1: '1e kwartaal',
     2: '2e kwartaal', 
     3: '3e kwartaal',
-    4: '4e kwartaal'
+    4: '4e kwartaal',
+    5: 'Heel jaar'
   };
   return quarterNames[quarter as keyof typeof quarterNames] || '1e kwartaal';
 };
@@ -84,6 +85,11 @@ export const filterEntriesByQuarter = (
   year: number,
   quarter: number
 ): FinanceEntry[] => {
+  // If quarter is 5, return all entries for the year (whole year)
+  if (quarter === 5) {
+    return filterEntriesByYear(entries, year);
+  }
+  
   return entries.filter((entry) => {
     const entryDate = new Date(entry.date);
     const entryYear = entryDate.getFullYear();

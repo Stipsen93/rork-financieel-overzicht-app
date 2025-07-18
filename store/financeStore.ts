@@ -39,7 +39,7 @@ export const useFinanceStore = create<FinanceState>()(
       },
       quarterSelection: {
         year: new Date().getFullYear(),
-        quarter: Math.ceil((new Date().getMonth() + 1) / 3),
+        quarter: 5, // Default to "Heel jaar" (whole year)
       },
       apiKey: null,
       

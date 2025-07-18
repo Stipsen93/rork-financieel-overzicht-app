@@ -16,7 +16,7 @@ export default function QuarterPicker({ year, quarter, onSelect }: QuarterPicker
   
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
-  const quarters = [1, 2, 3, 4];
+  const quarters = [1, 2, 3, 4, 5]; // Added 5 for "Heel jaar"
   
   const handleSelect = (value: number) => {
     if (selectedType === 'quarter') {
@@ -64,7 +64,7 @@ export default function QuarterPicker({ year, quarter, onSelect }: QuarterPicker
         >
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>
-              {selectedType === 'quarter' ? 'Selecteer Kwartaal' : 'Selecteer Jaar'}
+              {selectedType === 'quarter' ? 'Selecteer Periode' : 'Selecteer Jaar'}
             </Text>
             
             <FlatList

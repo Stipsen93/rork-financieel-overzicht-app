@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
-import { callAIAPI } from './apiService';
+import { callGeminiAPI } from './apiService';
 
 interface BankTransaction {
   date: string;
@@ -26,8 +26,7 @@ type CoreMessage =
 
 export const processBankStatements = async (
   files: SelectedFile[],
-  apiKey: string,
-  apiProvider: 'chatgpt' | 'gemini' = 'chatgpt'
+  apiKey: string
 ): Promise<BankTransaction[] | null> => {
   try {
     if (files.length === 0) {
@@ -173,7 +172,7 @@ BELANGRIJK:
       },
     ];
     
-    const data = await callAIAPI(messages, apiProvider);
+    const data = await callGeminiAPI(messages);
     
     if (data.completion) {
       try {
@@ -215,10 +214,9 @@ BELANGRIJK:
 export const processBankStatement = async (
   fileUri: string,
   fileType: 'image' | 'pdf',
-  apiKey: string,
-  apiProvider: 'chatgpt' | 'gemini' = 'chatgpt'
+  apiKey: string
 ): Promise<BankTransaction[] | null> => {
-  return processBankStatements([{ uri: fileUri, type: fileType }], apiKey, apiProvider);
+  return processBankStatements([{ uri: fileUri, type: fileType }], apiKey);
 };
 
 const fileToBase64 = async (uri: string): Promise<string | null> => {

@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
-import { callAIAPI } from './apiService';
+import { callGeminiAPI } from './apiService';
 
 interface ReceiptData {
   name?: string;
@@ -20,8 +20,7 @@ type CoreMessage =
 
 export const processReceiptImages = async (
   imageUris: string[],
-  apiKey: string,
-  apiProvider: 'chatgpt' | 'gemini' = 'chatgpt'
+  apiKey: string
 ): Promise<ReceiptData | null> => {
   try {
     if (imageUris.length === 0) {
@@ -87,7 +86,7 @@ Retourneer alleen het JSON object, geen andere tekst.`,
       },
     ];
     
-    const data = await callAIAPI(messages, apiProvider);
+    const data = await callGeminiAPI(messages);
     
     if (data.completion) {
       try {
@@ -114,10 +113,9 @@ Retourneer alleen het JSON object, geen andere tekst.`,
 // Keep the original function for backward compatibility
 export const processReceiptImage = async (
   imageUri: string,
-  apiKey: string,
-  apiProvider: 'chatgpt' | 'gemini' = 'chatgpt'
+  apiKey: string
 ): Promise<ReceiptData | null> => {
-  return processReceiptImages([imageUri], apiKey, apiProvider);
+  return processReceiptImages([imageUri], apiKey);
 };
 
 const fileToBase64 = async (uri: string): Promise<string | null> => {

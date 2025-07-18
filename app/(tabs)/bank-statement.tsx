@@ -33,7 +33,7 @@ export default function BankStatementScreen() {
   const [facing, setFacing] = useState<CameraType>('back');
   const [permission, requestPermission] = useCameraPermissions();
   
-  const { apiKey, apiProvider, addIncome, addExpense } = useFinanceStore();
+  const { apiKey, addIncome, addExpense } = useFinanceStore();
   const cameraRef = React.useRef<CameraView>(null);
 
   const openCamera = async () => {
@@ -115,14 +115,14 @@ export default function BankStatementScreen() {
     if (selectedFiles.length === 0) return;
     
     if (!apiKey) {
-      Alert.alert('API Sleutel Ontbreekt', `Stel je ${apiProvider === 'chatgpt' ? 'ChatGPT' : 'Gemini'} API sleutel in via het menu`);
+      Alert.alert('API Sleutel Ontbreekt', 'Stel je Gemini API sleutel in via het menu');
       return;
     }
     
     setIsProcessing(true);
     
     try {
-      const transactions = await processBankStatements(selectedFiles, apiKey, apiProvider);
+      const transactions = await processBankStatements(selectedFiles, apiKey);
       
       if (transactions && transactions.length > 0) {
         // Add transactions to the store
@@ -210,7 +210,7 @@ export default function BankStatementScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Bankafschriften Verwerken</Text>
         <Text style={styles.subtitle}>
-          Maak foto's van je bankafschriften, selecteer afbeeldingen of upload PDF bestanden om automatisch alle transacties toe te voegen
+          Maak foto's van je bankafschriften, selecteer afbeeldingen of upload PDF bestanden om automatisch alle transacties toe te voegen met Gemini AI
         </Text>
       </View>
       
@@ -291,7 +291,7 @@ export default function BankStatementScreen() {
       <View style={styles.infoSection}>
         <Text style={styles.infoTitle}>Hoe werkt het?</Text>
         <Text style={styles.infoText}>
-          1. Zorg dat je {apiProvider === 'chatgpt' ? 'ChatGPT' : 'Gemini'} API sleutel is ingesteld{'\n'}
+          1. Zorg dat je Gemini API sleutel is ingesteld{'\n'}
           2. Maak duidelijke foto's van je bankafschriften, selecteer afbeeldingen of upload PDF bestanden{'\n'}
           3. Druk op "Bankafschriften Verwerken"{'\n'}
           4. De app leest automatisch alle transacties uit alle bestanden{'\n'}

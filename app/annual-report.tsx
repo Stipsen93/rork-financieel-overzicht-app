@@ -21,11 +21,11 @@ import * as Sharing from 'expo-sharing';
 export default function AnnualReportScreen() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [isGenerating, setIsGenerating] = useState(false);
-  const { incomes, expenses, apiKey, apiProvider } = useFinanceStore();
+  const { incomes, expenses, apiKey } = useFinanceStore();
   
   const handleGenerateReport = async () => {
     if (!apiKey) {
-      Alert.alert('API Sleutel Ontbreekt', `Stel je ${apiProvider === 'chatgpt' ? 'ChatGPT' : 'Gemini'} API sleutel in bij profiel instellingen`);
+      Alert.alert('API Sleutel Ontbreekt', 'Stel je Gemini API sleutel in bij profiel instellingen');
       return;
     }
     
@@ -40,7 +40,7 @@ export default function AnnualReportScreen() {
     setIsGenerating(true);
     
     try {
-      const reportText = await generateAnnualReport(yearIncomes, yearExpenses, selectedYear, apiKey, apiProvider);
+      const reportText = await generateAnnualReport(yearIncomes, yearExpenses, selectedYear, apiKey);
       
       if (Platform.OS === 'web') {
         // For web, create a download link for text file
@@ -98,7 +98,7 @@ export default function AnnualReportScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Jaarrekening Genereren</Text>
         <Text style={styles.subtitle}>
-          Selecteer een jaar om een complete jaarrekening te genereren
+          Selecteer een jaar om een complete jaarrekening te genereren met Gemini AI
         </Text>
       </View>
       

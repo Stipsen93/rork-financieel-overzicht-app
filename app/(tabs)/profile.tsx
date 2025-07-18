@@ -13,16 +13,12 @@ import { useFinanceStore } from '@/store/financeStore';
 import Colors from '@/constants/colors';
 
 export default function ProfileScreen() {
-  const { apiKey, apiProvider, setApiKey, setApiProvider } = useFinanceStore();
+  const { apiKey, setApiKey } = useFinanceStore();
   const [inputApiKey, setInputApiKey] = useState(apiKey || '');
   
   const handleSaveApiKey = () => {
     setApiKey(inputApiKey.trim());
-    Alert.alert('Succes', 'API sleutel succesvol opgeslagen');
-  };
-  
-  const handleProviderChange = (provider: 'chatgpt' | 'gemini') => {
-    setApiProvider(provider);
+    Alert.alert('Succes', 'Gemini API sleutel succesvol opgeslagen');
   };
   
   return (
@@ -41,65 +37,18 @@ export default function ProfileScreen() {
       />
       
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>AI Provider Selectie</Text>
+        <Text style={styles.sectionTitle}>Gemini API Instellingen</Text>
         <Text style={styles.description}>
-          Kies welke AI provider je wilt gebruiken voor het verwerken van bonnen en bankafschriften.
+          Voer je Google Gemini API sleutel in om de bon scan functionaliteit en bankafschrift verwerking in te schakelen.
+          Hiermee kan de app automatisch informatie uit je bonnen, facturen en bankafschriften halen.
         </Text>
         
-        <View style={styles.providerContainer}>
-          <TouchableOpacity
-            style={[
-              styles.providerButton,
-              apiProvider === 'chatgpt' && styles.providerButtonActive,
-            ]}
-            onPress={() => handleProviderChange('chatgpt')}
-          >
-            <View style={styles.radioButton}>
-              {apiProvider === 'chatgpt' && <View style={styles.radioButtonInner} />}
-            </View>
-            <Text style={[
-              styles.providerText,
-              apiProvider === 'chatgpt' && styles.providerTextActive,
-            ]}>
-              ChatGPT (OpenAI)
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[
-              styles.providerButton,
-              apiProvider === 'gemini' && styles.providerButtonActive,
-            ]}
-            onPress={() => handleProviderChange('gemini')}
-          >
-            <View style={styles.radioButton}>
-              {apiProvider === 'gemini' && <View style={styles.radioButtonInner} />}
-            </View>
-            <Text style={[
-              styles.providerText,
-              apiProvider === 'gemini' && styles.providerTextActive,
-            ]}>
-              Gemini (Google)
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-      
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>
-          {apiProvider === 'chatgpt' ? 'ChatGPT' : 'Gemini'} API Instellingen
-        </Text>
-        <Text style={styles.description}>
-          Voer je {apiProvider === 'chatgpt' ? 'ChatGPT (OpenAI)' : 'Gemini'} API sleutel in om de bon scan functionaliteit in te schakelen.
-          Hiermee kan de app automatisch informatie uit je bonnen en facturen halen.
-        </Text>
-        
-        <Text style={styles.label}>API Sleutel</Text>
+        <Text style={styles.label}>Gemini API Sleutel</Text>
         <TextInput
           style={styles.input}
           value={inputApiKey}
           onChangeText={setInputApiKey}
-          placeholder={`Voer je ${apiProvider === 'chatgpt' ? 'ChatGPT' : 'Gemini'} API sleutel in`}
+          placeholder="Voer je Gemini API sleutel in"
           secureTextEntry
           autoCapitalize="none"
         />
@@ -113,9 +62,9 @@ export default function ProfileScreen() {
         
         {apiKey && (
           <View style={styles.statusContainer}>
-            <Text style={styles.statusText}>✓ {apiProvider === 'chatgpt' ? 'ChatGPT' : 'Gemini'} API sleutel is ingesteld</Text>
+            <Text style={styles.statusText}>✓ Gemini API sleutel is ingesteld</Text>
             <Text style={styles.statusDescription}>
-              Je kunt nu foto's van bonnen en facturen scannen om automatisch gegevens in te vullen.
+              Je kunt nu foto's van bonnen, facturen en bankafschriften scannen om automatisch gegevens in te vullen.
             </Text>
           </View>
         )}
@@ -124,12 +73,23 @@ export default function ProfileScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Hoe werkt het?</Text>
         <Text style={styles.description}>
-          1. Selecteer je gewenste AI provider (ChatGPT of Gemini){'\n'}
-          2. Voeg je API sleutel toe{'\n'}
-          3. Ga naar Inkomen of Uitgaven{'\n'}
-          4. Druk op de + of - knop om een nieuwe post toe te voegen{'\n'}
-          5. Druk op "Foto Maken" of "Afbeelding Kiezen"{'\n'}
-          6. De app leest automatisch de bon uit en vult de gegevens in
+          1. Voeg je Gemini API sleutel toe{'\n'}
+          2. Ga naar Inkomen of Uitgaven{'\n'}
+          3. Druk op de + of - knop om een nieuwe post toe te voegen{'\n'}
+          4. Druk op "Foto Maken" of "Afbeelding Kiezen"{'\n'}
+          5. De app leest automatisch de bon uit en vult de gegevens in{'\n'}
+          6. Voor bankafschriften: ga naar het menu en selecteer "Bankafschrift"
+        </Text>
+      </View>
+      
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Gemini API Sleutel Verkrijgen</Text>
+        <Text style={styles.description}>
+          1. Ga naar Google AI Studio (aistudio.google.com){'\n'}
+          2. Maak een account aan of log in{'\n'}
+          3. Ga naar "Get API Key"{'\n'}
+          4. Maak een nieuwe API sleutel aan{'\n'}
+          5. Kopieer de sleutel en plak deze hierboven
         </Text>
       </View>
       
@@ -138,7 +98,7 @@ export default function ProfileScreen() {
         <Text style={styles.description}>
           Deze app helpt ondernemers hun inkomsten en uitgaven bij te houden, inclusief
           BTW berekeningen. Gebruik de camera functie om bonnen te scannen en
-          automatisch informatie te extraheren.
+          automatisch informatie te extraheren met Google Gemini AI.
         </Text>
       </View>
       
@@ -146,7 +106,7 @@ export default function ProfileScreen() {
         <Text style={styles.sectionTitle}>Privacy</Text>
         <Text style={styles.description}>
           Je financiële gegevens worden lokaal op je apparaat opgeslagen. Bon afbeeldingen
-          worden verwerkt via de {apiProvider === 'chatgpt' ? 'ChatGPT' : 'Gemini'} API en worden niet permanent opgeslagen op
+          en bankafschriften worden verwerkt via de Gemini API en worden niet permanent opgeslagen op
           externe servers.
         </Text>
       </View>
@@ -183,46 +143,6 @@ const styles = StyleSheet.create({
     color: Colors.lightText,
     marginBottom: 16,
     lineHeight: 20,
-  },
-  providerContainer: {
-    marginBottom: 16,
-  },
-  providerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.background,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    padding: 16,
-    marginBottom: 8,
-  },
-  providerButtonActive: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primary,
-  },
-  radioButton: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: Colors.border,
-    marginRight: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  radioButtonInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: Colors.text,
-  },
-  providerText: {
-    fontSize: 16,
-    color: Colors.text,
-  },
-  providerTextActive: {
-    fontWeight: 'bold',
   },
   label: {
     fontSize: 16,

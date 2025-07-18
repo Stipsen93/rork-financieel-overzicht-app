@@ -48,7 +48,7 @@ export default function TabLayout() {
                 marginLeft: 8,
                 fontWeight: '500'
               }}>
-                Versie 1.2
+                Versie 1.3
               </Text>
             </View>
           ),

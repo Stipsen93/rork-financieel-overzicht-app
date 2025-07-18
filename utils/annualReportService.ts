@@ -1,6 +1,6 @@
 import { FinanceEntry } from '@/types/finance';
 import { formatCurrency } from '@/utils/finance';
-import { callAIAPI } from './apiService';
+import { callGeminiAPI } from './apiService';
 
 interface CategorizedExpenses {
   tanken: FinanceEntry[];
@@ -22,8 +22,7 @@ type CoreMessage =
 
 const categorizeExpensesWithAI = async (
   expenses: FinanceEntry[], 
-  apiKey: string,
-  apiProvider: 'chatgpt' | 'gemini'
+  apiKey: string
 ): Promise<CategorizedExpenses> => {
   if (expenses.length === 0) {
     return {
@@ -78,7 +77,7 @@ Retourneer alleen het JSON object, geen andere tekst.`;
       },
     ];
 
-    const data = await callAIAPI(messages, apiProvider);
+    const data = await callGeminiAPI(messages);
     
     if (data.completion) {
       try {
@@ -206,12 +205,11 @@ export const generateAnnualReport = async (
   incomes: FinanceEntry[],
   expenses: FinanceEntry[],
   year: number,
-  apiKey: string,
-  apiProvider: 'chatgpt' | 'gemini' = 'chatgpt'
+  apiKey: string
 ): Promise<string> => {
   try {
     // Use AI to categorize expenses
-    const categorizedExpenses = await categorizeExpensesWithAI(expenses, apiKey, apiProvider);
+    const categorizedExpenses = await categorizeExpensesWithAI(expenses, apiKey);
     const totals = calculateTotals(incomes, categorizedExpenses);
     
     const expenseDetails = [
@@ -267,7 +265,7 @@ Maak hiervan een nette, professionele jaarrekening in tekst formaat. Gebruik een
       },
     ];
     
-    const data = await callAIAPI(messages, apiProvider);
+    const data = await callGeminiAPI(messages);
     
     if (data.completion) {
       return data.completion.trim();

@@ -51,16 +51,23 @@ export default function OverviewScreen() {
       </View>
       
       <View style={styles.summaryContainer}>
-        <SummaryCard
-          title="Totaal Inkomen incl BTW"
-          amount={summary.totalIncome}
-          isPositive={true}
-        />
-        <SummaryCard
-          title="Totaal Inkomen ex BTW"
-          amount={incomeExVat}
-          isPositive={true}
-        />
+        <View style={styles.rowContainer}>
+          <View style={styles.cardContainer}>
+            <SummaryCard
+              title="Totaal Inkomen incl BTW"
+              amount={summary.totalIncome}
+              isPositive={true}
+            />
+          </View>
+          <View style={styles.cardContainer}>
+            <SummaryCard
+              title="Totaal Inkomen ex BTW"
+              amount={incomeExVat}
+              isPositive={true}
+            />
+          </View>
+        </View>
+        
         <SummaryCard
           title="Totaal Uitgaven"
           amount={summary.totalExpense}
@@ -169,6 +176,14 @@ const styles = StyleSheet.create({
   },
   summaryContainer: {
     marginTop: 16,
+  },
+  rowContainer: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+  },
+  cardContainer: {
+    flex: 1,
+    marginRight: 8,
   },
   balanceContainer: {
     flexDirection: 'row',

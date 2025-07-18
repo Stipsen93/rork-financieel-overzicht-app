@@ -14,11 +14,17 @@ export const processBankStatement = async (
   apiKey: string
 ): Promise<BankTransaction[] | null> => {
   try {
-    // Convert file to base64
-    const base64 = await fileToBase64(fileUri, fileType);
+    if (fileType === 'pdf') {
+      // For PDF files, we can't use the vision API
+      // Instead, we'll ask the user to convert to image or use OCR
+      throw new Error('PDF verwerking wordt momenteel niet ondersteund. Gebruik een foto van het bankafschrift.');
+    }
+
+    // Only process images
+    const base64 = await fileToBase64(fileUri);
     
     if (!base64) {
-      throw new Error('Failed to convert file to base64');
+      throw new Error('Kon afbeelding niet converteren');
     }
     
     const messages = [
@@ -53,12 +59,9 @@ Retourneer alleen het JSON array, geen andere tekst.`,
       },
       {
         role: 'user',
-        content: fileType === 'image' ? [
+        content: [
           { type: 'text', text: 'Analyseer dit bankafschrift en extraheer alle transacties:' },
           { type: 'image', image: base64 },
-        ] : [
-          { type: 'text', text: 'Analyseer dit PDF bankafschrift en extraheer alle transacties. Het bestand is in base64 formaat.' },
-          { type: 'text', text: base64 },
         ],
       },
     ];
@@ -72,7 +75,9 @@ Retourneer alleen het JSON array, geen andere tekst.`,
     });
     
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorText = await response.text();
+      console.error('API Error:', response.status, errorText);
+      throw new Error(`API fout: ${response.status}. Controleer je API sleutel.`);
     }
     
     const data = await response.json();
@@ -101,27 +106,28 @@ Retourneer alleen het JSON array, geen andere tekst.`,
         }
       } catch (parseError) {
         console.error('Error parsing JSON from AI response:', parseError);
+        throw new Error('Kon transacties niet verwerken uit AI antwoord');
       }
     }
     
-    return null;
+    throw new Error('Geen transacties gevonden in het bankafschrift');
   } catch (error) {
     console.error('Error processing bank statement:', error);
     throw error;
   }
 };
 
-const fileToBase64 = async (uri: string, fileType: 'image' | 'pdf'): Promise<string | null> => {
+const fileToBase64 = async (uri: string): Promise<string | null> => {
   try {
     if (Platform.OS === 'web') {
-      return await fetchFileAsBase64(uri);
+      return await fetchImageAsBase64(uri);
     } else {
       const base64 = await FileSystem.readAsStringAsync(uri, {
         encoding: FileSystem.EncodingType.Base64,
       });
       
-      // Determine MIME type
-      const mimeType = fileType === 'pdf' ? 'application/pdf' : getMimeType(uri);
+      // Determine MIME type based on file extension
+      const mimeType = getMimeType(uri);
       return `data:${mimeType};base64,${base64}`;
     }
   } catch (error) {
@@ -130,7 +136,7 @@ const fileToBase64 = async (uri: string, fileType: 'image' | 'pdf'): Promise<str
   }
 };
 
-const fetchFileAsBase64 = async (uri: string): Promise<string> => {
+const fetchImageAsBase64 = async (uri: string): Promise<string> => {
   const response = await fetch(uri);
   const blob = await response.blob();
   
@@ -155,8 +161,6 @@ const getMimeType = (uri: string): string => {
       return 'image/gif';
     case 'heic':
       return 'image/heic';
-    case 'pdf':
-      return 'application/pdf';
     default:
       return 'image/jpeg'; // Default to JPEG
   }

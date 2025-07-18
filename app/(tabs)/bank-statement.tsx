@@ -88,8 +88,19 @@ export default function BankStatementScreen() {
       
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
+        const isPdf = asset.mimeType?.includes('pdf');
+        
+        if (isPdf) {
+          Alert.alert(
+            'PDF Niet Ondersteund',
+            'PDF bankafschriften worden momenteel niet ondersteund. Maak een foto van je bankafschrift of gebruik een afbeelding.',
+            [{ text: 'OK' }]
+          );
+          return;
+        }
+        
         setSelectedFile(asset.uri);
-        setFileType(asset.mimeType?.includes('pdf') ? 'pdf' : 'image');
+        setFileType('image');
       }
     } catch (error) {
       console.error('Error picking document:', error);
@@ -98,7 +109,7 @@ export default function BankStatementScreen() {
   };
 
   const processStatement = async () => {
-    if (!selectedFile) return;
+    if (!selectedFile || !fileType) return;
     
     if (!apiKey) {
       Alert.alert('API Sleutel Ontbreekt', 'Stel je ChatGPT API sleutel in via het menu');
@@ -108,7 +119,7 @@ export default function BankStatementScreen() {
     setIsProcessing(true);
     
     try {
-      const transactions = await processBankStatement(selectedFile, fileType!, apiKey);
+      const transactions = await processBankStatement(selectedFile, fileType, apiKey);
       
       if (transactions && transactions.length > 0) {
         // Add transactions to the store
@@ -146,9 +157,9 @@ export default function BankStatementScreen() {
       } else {
         Alert.alert('Geen Transacties', 'Er konden geen transacties worden gevonden in het bankafschrift');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error processing bank statement:', error);
-      Alert.alert('Fout', 'Kon bankafschrift niet verwerken. Controleer je internetverbinding en API sleutel.');
+      Alert.alert('Fout', error.message || 'Kon bankafschrift niet verwerken. Controleer je internetverbinding en API sleutel.');
     } finally {
       setIsProcessing(false);
     }
@@ -172,12 +183,12 @@ export default function BankStatementScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Bankafschrift Verwerken</Text>
         <Text style={styles.subtitle}>
-          Upload een foto of PDF van je bankafschrift om automatisch alle transacties toe te voegen
+          Maak een foto van je bankafschrift om automatisch alle transacties toe te voegen
         </Text>
       </View>
       
       <View style={styles.uploadSection}>
-        <Text style={styles.sectionTitle}>Selecteer Bestand</Text>
+        <Text style={styles.sectionTitle}>Selecteer Afbeelding</Text>
         
         <View style={styles.uploadButtons}>
           <TouchableOpacity
@@ -195,33 +206,24 @@ export default function BankStatementScreen() {
             <Upload size={24} color={Colors.text} />
             <Text style={styles.uploadButtonText}>Afbeelding Kiezen</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={styles.uploadButton}
-            onPress={pickDocument}
-          >
-            <FileText size={24} color={Colors.text} />
-            <Text style={styles.uploadButtonText}>PDF Kiezen</Text>
-          </TouchableOpacity>
+        </View>
+        
+        <View style={styles.warningContainer}>
+          <Text style={styles.warningText}>
+            ⚠️ Momenteel worden alleen afbeeldingen ondersteund. PDF bestanden kunnen niet verwerkt worden.
+          </Text>
         </View>
       </View>
       
       {selectedFile && (
         <View style={styles.previewSection}>
-          <Text style={styles.sectionTitle}>Geselecteerd Bestand</Text>
+          <Text style={styles.sectionTitle}>Geselecteerde Afbeelding</Text>
           
-          {fileType === 'image' ? (
-            <Image
-              source={{ uri: selectedFile }}
-              style={styles.imagePreview}
-              contentFit="cover"
-            />
-          ) : (
-            <View style={styles.pdfPreview}>
-              <FileText size={48} color={Colors.text} />
-              <Text style={styles.pdfText}>PDF Geselecteerd</Text>
-            </View>
-          )}
+          <Image
+            source={{ uri: selectedFile }}
+            style={styles.imagePreview}
+            contentFit="cover"
+          />
           
           <TouchableOpacity
             style={styles.removeButton}
@@ -258,12 +260,18 @@ export default function BankStatementScreen() {
       <View style={styles.infoSection}>
         <Text style={styles.infoTitle}>Hoe werkt het?</Text>
         <Text style={styles.infoText}>
-          1. Zorg dat je ChatGPT API sleutel is ingesteld{'\n'}
-          2. Maak een foto of selecteer een PDF van je bankafschrift{'\n'}
-          3. Druk op "Bankafschrift Verwerken"{'\n'}
-          4. De app leest automatisch alle transacties uit{'\n'}
-          5. Inkomsten en uitgaven worden automatisch toegevoegd{'\n'}
-          {'\n'}
+          1. Zorg dat je ChatGPT API sleutel is ingesteld{'
+'}
+          2. Maak een duidelijke foto van je bankafschrift{'
+'}
+          3. Druk op "Bankafschrift Verwerken"{'
+'}
+          4. De app leest automatisch alle transacties uit{'
+'}
+          5. Inkomsten en uitgaven worden automatisch toegevoegd{'
+'}
+          {'
+'}
           <Text style={styles.infoNote}>
             Let op: Controleer altijd de toegevoegde transacties en pas indien nodig aan.
           </Text>
@@ -316,6 +324,7 @@ const styles = StyleSheet.create({
   uploadButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginBottom: 16,
   },
   uploadButton: {
     flex: 1,
@@ -332,6 +341,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'center',
   },
+  warningContainer: {
+    backgroundColor: '#FFF3CD',
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#FFEAA7',
+  },
+  warningText: {
+    fontSize: 14,
+    color: '#856404',
+    textAlign: 'center',
+  },
   previewSection: {
     backgroundColor: Colors.card,
     borderRadius: 12,
@@ -345,18 +366,6 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: 8,
     marginBottom: 16,
-  },
-  pdfPreview: {
-    alignItems: 'center',
-    padding: 40,
-    backgroundColor: Colors.background,
-    borderRadius: 8,
-    marginBottom: 16,
-  },
-  pdfText: {
-    fontSize: 16,
-    color: Colors.text,
-    marginTop: 8,
   },
   removeButton: {
     backgroundColor: Colors.danger,

@@ -124,16 +124,11 @@ export default function ProfileScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Hoe werkt het?</Text>
         <Text style={styles.description}>
-          1. Selecteer je gewenste AI provider (ChatGPT of Gemini){'
-'}
-          2. Voeg je API sleutel toe{'
-'}
-          3. Ga naar Inkomen of Uitgaven{'
-'}
-          4. Druk op de + of - knop om een nieuwe post toe te voegen{'
-'}
-          5. Druk op "Foto Maken" of "Afbeelding Kiezen"{'
-'}
+          1. Selecteer je gewenste AI provider (ChatGPT of Gemini){'\n'}
+          2. Voeg je API sleutel toe{'\n'}
+          3. Ga naar Inkomen of Uitgaven{'\n'}
+          4. Druk op de + of - knop om een nieuwe post toe te voegen{'\n'}
+          5. Druk op "Foto Maken" of "Afbeelding Kiezen"{'\n'}
           6. De app leest automatisch de bon uit en vult de gegevens in
         </Text>
       </View>

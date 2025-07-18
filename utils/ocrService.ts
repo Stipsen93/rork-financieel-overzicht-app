@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
+import { callAIAPI } from './apiService';
 
 interface ReceiptData {
   name?: string;
@@ -19,7 +20,8 @@ type CoreMessage =
 
 export const processReceiptImages = async (
   imageUris: string[],
-  apiKey: string
+  apiKey: string,
+  apiProvider: 'chatgpt' | 'gemini' = 'chatgpt'
 ): Promise<ReceiptData | null> => {
   try {
     if (imageUris.length === 0) {
@@ -85,19 +87,7 @@ Retourneer alleen het JSON object, geen andere tekst.`,
       },
     ];
     
-    const response = await fetch('https://toolkit.rork.com/text/llm/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ messages }),
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const data = await response.json();
+    const data = await callAIAPI(messages, apiProvider);
     
     if (data.completion) {
       try {
@@ -124,9 +114,10 @@ Retourneer alleen het JSON object, geen andere tekst.`,
 // Keep the original function for backward compatibility
 export const processReceiptImage = async (
   imageUri: string,
-  apiKey: string
+  apiKey: string,
+  apiProvider: 'chatgpt' | 'gemini' = 'chatgpt'
 ): Promise<ReceiptData | null> => {
-  return processReceiptImages([imageUri], apiKey);
+  return processReceiptImages([imageUri], apiKey, apiProvider);
 };
 
 const fileToBase64 = async (uri: string): Promise<string | null> => {

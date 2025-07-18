@@ -11,6 +11,7 @@ interface FinanceState {
   yearSelection: YearSelection;
   quarterSelection: QuarterSelection;
   apiKey: string | null;
+  apiProvider: 'chatgpt' | 'gemini';
   
   // Actions
   addIncome: (income: Omit<FinanceEntry, 'id' | 'vatAmount'>) => void;
@@ -23,6 +24,7 @@ interface FinanceState {
   setYearSelection: (yearSelection: YearSelection) => void;
   setQuarterSelection: (quarterSelection: QuarterSelection) => void;
   setApiKey: (apiKey: string) => void;
+  setApiProvider: (provider: 'chatgpt' | 'gemini') => void;
   resetAllData: () => void;
 }
 
@@ -43,6 +45,7 @@ export const useFinanceStore = create<FinanceState>()(
         quarter: 5, // Default to "Heel jaar" (whole year)
       },
       apiKey: null,
+      apiProvider: 'chatgpt',
       
       addIncome: (income) => {
         const vatAmount = calculateVatAmount(income.amount, income.vatRate);
@@ -126,6 +129,10 @@ export const useFinanceStore = create<FinanceState>()(
       
       setApiKey: (apiKey) => {
         set({ apiKey });
+      },
+      
+      setApiProvider: (provider) => {
+        set({ apiProvider: provider });
       },
       
       resetAllData: () => {

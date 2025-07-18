@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
+import { callAIAPI } from './apiService';
 
 interface BankTransaction {
   date: string;
@@ -25,7 +26,8 @@ type CoreMessage =
 
 export const processBankStatements = async (
   files: SelectedFile[],
-  apiKey: string
+  apiKey: string,
+  apiProvider: 'chatgpt' | 'gemini' = 'chatgpt'
 ): Promise<BankTransaction[] | null> => {
   try {
     if (files.length === 0) {
@@ -171,21 +173,7 @@ BELANGRIJK:
       },
     ];
     
-    const response = await fetch('https://toolkit.rork.com/text/llm/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ messages }),
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('API Error:', response.status, errorText);
-      throw new Error(`API fout: ${response.status}. Controleer je API sleutel.`);
-    }
-    
-    const data = await response.json();
+    const data = await callAIAPI(messages, apiProvider);
     
     if (data.completion) {
       try {
@@ -227,9 +215,10 @@ BELANGRIJK:
 export const processBankStatement = async (
   fileUri: string,
   fileType: 'image' | 'pdf',
-  apiKey: string
+  apiKey: string,
+  apiProvider: 'chatgpt' | 'gemini' = 'chatgpt'
 ): Promise<BankTransaction[] | null> => {
-  return processBankStatements([{ uri: fileUri, type: fileType }], apiKey);
+  return processBankStatements([{ uri: fileUri, type: fileType }], apiKey, apiProvider);
 };
 
 const fileToBase64 = async (uri: string): Promise<string | null> => {

@@ -21,11 +21,11 @@ import * as Sharing from 'expo-sharing';
 export default function AnnualReportScreen() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [isGenerating, setIsGenerating] = useState(false);
-  const { incomes, expenses, apiKey } = useFinanceStore();
+  const { incomes, expenses, apiKey, apiProvider } = useFinanceStore();
   
   const handleGenerateReport = async () => {
     if (!apiKey) {
-      Alert.alert('API Sleutel Ontbreekt', 'Stel je ChatGPT API sleutel in bij profiel instellingen');
+      Alert.alert('API Sleutel Ontbreekt', `Stel je ${apiProvider === 'chatgpt' ? 'ChatGPT' : 'Gemini'} API sleutel in bij profiel instellingen`);
       return;
     }
     
@@ -40,7 +40,7 @@ export default function AnnualReportScreen() {
     setIsGenerating(true);
     
     try {
-      const reportText = await generateAnnualReport(yearIncomes, yearExpenses, selectedYear, apiKey);
+      const reportText = await generateAnnualReport(yearIncomes, yearExpenses, selectedYear, apiKey, apiProvider);
       
       if (Platform.OS === 'web') {
         // For web, create a download link for text file

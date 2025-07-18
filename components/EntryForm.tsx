@@ -41,7 +41,7 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
   const [facing, setFacing] = useState<CameraType>('back');
   
   const cameraRef = useRef<CameraView>(null);
-  const { addIncome, addExpense, apiKey, dateSelection } = useFinanceStore();
+  const { addIncome, addExpense, apiKey, apiProvider, dateSelection } = useFinanceStore();
   
   useEffect(() => {
     if (visible) {
@@ -156,14 +156,14 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
     if (imageUris.length === 0) return;
     
     if (!apiKey) {
-      Alert.alert('API Sleutel Ontbreekt', 'Stel je ChatGPT API sleutel in bij profiel instellingen');
+      Alert.alert('API Sleutel Ontbreekt', `Stel je ${apiProvider === 'chatgpt' ? 'ChatGPT' : 'Gemini'} API sleutel in bij profiel instellingen`);
       return;
     }
     
     setIsProcessing(true);
     
     try {
-      const result = await processReceiptImages(imageUris, apiKey);
+      const result = await processReceiptImages(imageUris, apiKey, apiProvider);
       
       if (result) {
         setName(result.name || '');

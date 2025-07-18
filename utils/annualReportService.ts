@@ -1,5 +1,6 @@
 import { FinanceEntry } from '@/types/finance';
 import { formatCurrency } from '@/utils/finance';
+import { callAIAPI } from './apiService';
 
 interface CategorizedExpenses {
   tanken: FinanceEntry[];
@@ -10,7 +11,11 @@ interface CategorizedExpenses {
   overige: FinanceEntry[];
 }
 
-const categorizeExpensesWithAI = async (expenses: FinanceEntry[], apiKey: string): Promise<CategorizedExpenses> => {
+const categorizeExpensesWithAI = async (
+  expenses: FinanceEntry[], 
+  apiKey: string,
+  apiProvider: 'chatgpt' | 'gemini'
+): Promise<CategorizedExpenses> => {
   if (expenses.length === 0) {
     return {
       tanken: [],
@@ -38,7 +43,8 @@ Categorieën:
 - overige: Alles wat niet in bovenstaande categorieën past
 
 Uitgaven lijst:
-${expenseNames.map(expense => `ID: ${expense.id} - Naam: ${expense.name}`).join('\n')}
+${expenseNames.map(expense => `ID: ${expense.id} - Naam: ${expense.name}`).join('
+')}
 
 Geef je antwoord terug als een JSON object met de volgende structuur:
 {
@@ -64,19 +70,7 @@ Retourneer alleen het JSON object, geen andere tekst.`;
       },
     ];
 
-    const response = await fetch('https://toolkit.rork.com/text/llm/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ messages }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
+    const data = await callAIAPI(messages, apiProvider);
     
     if (data.completion) {
       try {
@@ -204,11 +198,12 @@ export const generateAnnualReport = async (
   incomes: FinanceEntry[],
   expenses: FinanceEntry[],
   year: number,
-  apiKey: string
+  apiKey: string,
+  apiProvider: 'chatgpt' | 'gemini' = 'chatgpt'
 ): Promise<string> => {
   try {
     // Use AI to categorize expenses
-    const categorizedExpenses = await categorizeExpensesWithAI(expenses, apiKey);
+    const categorizedExpenses = await categorizeExpensesWithAI(expenses, apiKey, apiProvider);
     const totals = calculateTotals(incomes, categorizedExpenses);
     
     const expenseDetails = [
@@ -229,7 +224,8 @@ export const generateAnnualReport = async (
       '',
       `Overige kosten: ${formatCurrency(totals.totaleOverige)}`,
       ...categorizedExpenses.overige.map(expense => `- ${expense.name}: ${formatCurrency(expense.amount)} (${new Date(expense.date).toLocaleDateString('nl-NL')})`),
-    ].join('\n');
+    ].join('
+');
     
     const prompt = `Maak een professionele jaarrekening in tekst formaat voor het jaar ${year}. Gebruik de volgende gegevens:
 
@@ -264,19 +260,7 @@ Maak hiervan een nette, professionele jaarrekening in tekst formaat. Gebruik een
       },
     ];
     
-    const response = await fetch('https://toolkit.rork.com/text/llm/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ messages }),
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const data = await response.json();
+    const data = await callAIAPI(messages, apiProvider);
     
     if (data.completion) {
       return data.completion.trim();

@@ -15,6 +15,8 @@ interface FinanceState {
   // Actions
   addIncome: (income: Omit<FinanceEntry, 'id' | 'vatAmount'>) => void;
   addExpense: (expense: Omit<FinanceEntry, 'id' | 'vatAmount'>) => void;
+  addMultipleIncomes: (incomes: Omit<FinanceEntry, 'id' | 'vatAmount'>[]) => void;
+  addMultipleExpenses: (expenses: Omit<FinanceEntry, 'id' | 'vatAmount'>[]) => void;
   removeIncome: (id: string) => void;
   removeExpense: (id: string) => void;
   setDateSelection: (dateSelection: DateSelection) => void;
@@ -45,7 +47,7 @@ export const useFinanceStore = create<FinanceState>()(
         const vatAmount = calculateVatAmount(income.amount, income.vatRate);
         const newIncome: FinanceEntry = {
           ...income,
-          id: Date.now().toString(),
+          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
           vatAmount,
         };
         
@@ -58,12 +60,42 @@ export const useFinanceStore = create<FinanceState>()(
         const vatAmount = calculateVatAmount(expense.amount, expense.vatRate);
         const newExpense: FinanceEntry = {
           ...expense,
-          id: Date.now().toString(),
+          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
           vatAmount,
         };
         
         set((state) => ({
           expenses: [...state.expenses, newExpense],
+        }));
+      },
+      
+      addMultipleIncomes: (incomes) => {
+        const newIncomes: FinanceEntry[] = incomes.map((income, index) => {
+          const vatAmount = calculateVatAmount(income.amount, income.vatRate);
+          return {
+            ...income,
+            id: (Date.now() + index).toString() + Math.random().toString(36).substr(2, 9),
+            vatAmount,
+          };
+        });
+        
+        set((state) => ({
+          incomes: [...state.incomes, ...newIncomes],
+        }));
+      },
+      
+      addMultipleExpenses: (expenses) => {
+        const newExpenses: FinanceEntry[] = expenses.map((expense, index) => {
+          const vatAmount = calculateVatAmount(expense.amount, expense.vatRate);
+          return {
+            ...expense,
+            id: (Date.now() + index).toString() + Math.random().toString(36).substr(2, 9),
+            vatAmount,
+          };
+        });
+        
+        set((state) => ({
+          expenses: [...state.expenses, ...newExpenses],
         }));
       },
       

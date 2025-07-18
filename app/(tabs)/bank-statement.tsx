@@ -8,20 +8,20 @@ import {
   ScrollView,
   ActivityIndicator,
   Platform,
+  FlatList,
 } from 'react-native';
 import { Stack } from 'expo-router';
-import { Camera, Upload, FileText } from 'lucide-react-native';
+import { Camera, Upload, FileText, X } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { Image } from 'expo-image';
 import Colors from '@/constants/colors';
 import { useFinanceStore } from '@/store/financeStore';
-import { processBankStatement } from '@/utils/bankStatementService';
+import { processBankStatements } from '@/utils/bankStatementService';
 
 export default function BankStatementScreen() {
-  const [selectedFile, setSelectedFile] = useState<string | null>(null);
-  const [fileType, setFileType] = useState<'image' | 'pdf' | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [facing, setFacing] = useState<CameraType>('back');
@@ -50,9 +50,8 @@ export default function BankStatementScreen() {
         base64: false,
       });
       if (photo) {
-        setSelectedFile(photo.uri);
-        setFileType('image');
-        setShowCamera(false);
+        setSelectedFiles(prev => [...prev, photo.uri]);
+        // Don't close camera automatically to allow multiple photos
       }
     } catch (error) {
       console.error('Error taking picture:', error);
@@ -60,7 +59,7 @@ export default function BankStatementScreen() {
     }
   };
 
-  const pickImage = async () => {
+  const pickImages = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Toestemming vereist', 'Toegang tot fotobibliotheek is nodig om afbeeldingen te selecteren');
@@ -69,13 +68,14 @@ export default function BankStatementScreen() {
     
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
+      allowsEditing: false,
+      allowsMultipleSelection: true,
       quality: 0.8,
     });
     
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      setSelectedFile(result.assets[0].uri);
-      setFileType('image');
+      const newUris = result.assets.map(asset => asset.uri);
+      setSelectedFiles(prev => [...prev, ...newUris]);
     }
   };
 
@@ -84,32 +84,37 @@ export default function BankStatementScreen() {
       const result = await DocumentPicker.getDocumentAsync({
         type: ['application/pdf', 'image/*'],
         copyToCacheDirectory: true,
+        multiple: true,
       });
       
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const asset = result.assets[0];
-        const isPdf = asset.mimeType?.includes('pdf');
+        const pdfFiles = result.assets.filter(asset => asset.mimeType?.includes('pdf'));
         
-        if (isPdf) {
+        if (pdfFiles.length > 0) {
           Alert.alert(
             'PDF Niet Ondersteund',
-            'PDF bankafschriften worden momenteel niet ondersteund. Maak een foto van je bankafschrift of gebruik een afbeelding.',
+            'PDF bankafschriften worden momenteel niet ondersteund. Maak foto\'s van je bankafschriften of gebruik afbeeldingen.',
             [{ text: 'OK' }]
           );
           return;
         }
         
-        setSelectedFile(asset.uri);
-        setFileType('image');
+        const imageFiles = result.assets.filter(asset => !asset.mimeType?.includes('pdf'));
+        const newUris = imageFiles.map(asset => asset.uri);
+        setSelectedFiles(prev => [...prev, ...newUris]);
       }
     } catch (error) {
       console.error('Error picking document:', error);
-      Alert.alert('Fout', 'Kon document niet selecteren');
+      Alert.alert('Fout', 'Kon documenten niet selecteren');
     }
   };
 
-  const processStatement = async () => {
-    if (!selectedFile || !fileType) return;
+  const removeFile = (indexToRemove: number) => {
+    setSelectedFiles(prev => prev.filter((_, index) => index !== indexToRemove));
+  };
+
+  const processStatements = async () => {
+    if (selectedFiles.length === 0) return;
     
     if (!apiKey) {
       Alert.alert('API Sleutel Ontbreekt', 'Stel je ChatGPT API sleutel in via het menu');
@@ -119,7 +124,7 @@ export default function BankStatementScreen() {
     setIsProcessing(true);
     
     try {
-      const transactions = await processBankStatement(selectedFile, fileType, apiKey);
+      const transactions = await processBankStatements(selectedFiles, apiKey);
       
       if (transactions && transactions.length > 0) {
         // Add transactions to the store
@@ -143,27 +148,42 @@ export default function BankStatementScreen() {
         
         Alert.alert(
           'Succes', 
-          `${transactions.length} transacties succesvol verwerkt en toegevoegd!`,
+          `${transactions.length} transacties succesvol verwerkt en toegevoegd uit ${selectedFiles.length} afbeelding(en)!`,
           [
             {
               text: 'OK',
               onPress: () => {
-                setSelectedFile(null);
-                setFileType(null);
+                setSelectedFiles([]);
               }
             }
           ]
         );
       } else {
-        Alert.alert('Geen Transacties', 'Er konden geen transacties worden gevonden in het bankafschrift');
+        Alert.alert('Geen Transacties', 'Er konden geen transacties worden gevonden in de bankafschriften');
       }
     } catch (error: any) {
-      console.error('Error processing bank statement:', error);
-      Alert.alert('Fout', error.message || 'Kon bankafschrift niet verwerken. Controleer je internetverbinding en API sleutel.');
+      console.error('Error processing bank statements:', error);
+      Alert.alert('Fout', error.message || 'Kon bankafschriften niet verwerken. Controleer je internetverbinding en API sleutel.');
     } finally {
       setIsProcessing(false);
     }
   };
+
+  const renderImageItem = ({ item, index }: { item: string; index: number }) => (
+    <View style={styles.imageItem}>
+      <Image
+        source={{ uri: item }}
+        style={styles.imagePreview}
+        contentFit="cover"
+      />
+      <TouchableOpacity
+        style={styles.removeImageButton}
+        onPress={() => removeFile(index)}
+      >
+        <X size={16} color={Colors.secondary} />
+      </TouchableOpacity>
+    </View>
+  );
 
   return (
     <ScrollView style={styles.container}>
@@ -181,14 +201,14 @@ export default function BankStatementScreen() {
       />
       
       <View style={styles.header}>
-        <Text style={styles.title}>Bankafschrift Verwerken</Text>
+        <Text style={styles.title}>Bankafschriften Verwerken</Text>
         <Text style={styles.subtitle}>
-          Maak een foto van je bankafschrift om automatisch alle transacties toe te voegen
+          Maak foto's van je bankafschriften of selecteer meerdere afbeeldingen om automatisch alle transacties toe te voegen
         </Text>
       </View>
       
       <View style={styles.uploadSection}>
-        <Text style={styles.sectionTitle}>Selecteer Afbeelding</Text>
+        <Text style={styles.sectionTitle}>Selecteer Afbeeldingen ({selectedFiles.length} geselecteerd)</Text>
         
         <View style={styles.uploadButtons}>
           <TouchableOpacity
@@ -196,15 +216,15 @@ export default function BankStatementScreen() {
             onPress={openCamera}
           >
             <Camera size={24} color={Colors.text} />
-            <Text style={styles.uploadButtonText}>Foto Maken</Text>
+            <Text style={styles.uploadButtonText}>Foto's Maken</Text>
           </TouchableOpacity>
           
           <TouchableOpacity
             style={styles.uploadButton}
-            onPress={pickImage}
+            onPress={pickImages}
           >
             <Upload size={24} color={Colors.text} />
-            <Text style={styles.uploadButtonText}>Afbeelding Kiezen</Text>
+            <Text style={styles.uploadButtonText}>Afbeeldingen Kiezen</Text>
           </TouchableOpacity>
         </View>
         
@@ -215,35 +235,35 @@ export default function BankStatementScreen() {
         </View>
       </View>
       
-      {selectedFile && (
+      {selectedFiles.length > 0 && (
         <View style={styles.previewSection}>
-          <Text style={styles.sectionTitle}>Geselecteerde Afbeelding</Text>
+          <Text style={styles.sectionTitle}>Geselecteerde Afbeeldingen ({selectedFiles.length})</Text>
           
-          <Image
-            source={{ uri: selectedFile }}
-            style={styles.imagePreview}
-            contentFit="cover"
+          <FlatList
+            data={selectedFiles}
+            renderItem={renderImageItem}
+            keyExtractor={(item, index) => `${item}-${index}`}
+            numColumns={2}
+            scrollEnabled={false}
+            columnWrapperStyle={styles.imageRow}
           />
           
           <TouchableOpacity
-            style={styles.removeButton}
-            onPress={() => {
-              setSelectedFile(null);
-              setFileType(null);
-            }}
+            style={styles.clearAllButton}
+            onPress={() => setSelectedFiles([])}
           >
-            <Text style={styles.removeButtonText}>Verwijderen</Text>
+            <Text style={styles.clearAllButtonText}>Alle Afbeeldingen Verwijderen</Text>
           </TouchableOpacity>
         </View>
       )}
       
-      {selectedFile && apiKey && (
+      {selectedFiles.length > 0 && apiKey && (
         <TouchableOpacity
           style={[
             styles.processButton,
             isProcessing && styles.processButtonDisabled
           ]}
-          onPress={processStatement}
+          onPress={processStatements}
           disabled={isProcessing}
         >
           {isProcessing ? (
@@ -252,7 +272,9 @@ export default function BankStatementScreen() {
               <Text style={styles.processButtonText}>Verwerken...</Text>
             </View>
           ) : (
-            <Text style={styles.processButtonText}>Bankafschrift Verwerken</Text>
+            <Text style={styles.processButtonText}>
+              Bankafschriften Verwerken ({selectedFiles.length} afbeelding{selectedFiles.length !== 1 ? 'en' : ''})
+            </Text>
           )}
         </TouchableOpacity>
       )}
@@ -261,9 +283,9 @@ export default function BankStatementScreen() {
         <Text style={styles.infoTitle}>Hoe werkt het?</Text>
         <Text style={styles.infoText}>
           1. Zorg dat je ChatGPT API sleutel is ingesteld{'\n'}
-          2. Maak een duidelijke foto van je bankafschrift{'\n'}
-          3. Druk op "Bankafschrift Verwerken"{'\n'}
-          4. De app leest automatisch alle transacties uit{'\n'}
+          2. Maak duidelijke foto's van je bankafschriften of selecteer meerdere afbeeldingen{'\n'}
+          3. Druk op "Bankafschriften Verwerken"{'\n'}
+          4. De app leest automatisch alle transacties uit alle afbeeldingen{'\n'}
           5. Inkomsten en uitgaven worden automatisch toegevoegd{'\n'}
           {'\n'}
           <Text style={styles.infoNote}>
@@ -271,6 +293,55 @@ export default function BankStatementScreen() {
           </Text>
         </Text>
       </View>
+
+      {/* Camera Modal */}
+      {showCamera && (
+        <View style={StyleSheet.absoluteFill}>
+          {Platform.OS !== 'web' ? (
+            <CameraView
+              ref={cameraRef}
+              style={{ flex: 1 }}
+              facing={facing}
+            >
+              <View style={styles.cameraControls}>
+                <TouchableOpacity
+                  style={styles.cameraButton}
+                  onPress={() => setShowCamera(false)}
+                >
+                  <X size={24} color={Colors.secondary} />
+                </TouchableOpacity>
+                
+                <View style={styles.captureSection}>
+                  <TouchableOpacity
+                    style={styles.captureButton}
+                    onPress={takePicture}
+                  >
+                    <View style={styles.captureButtonInner} />
+                  </TouchableOpacity>
+                  <Text style={styles.photoCount}>{selectedFiles.length} foto's</Text>
+                </View>
+                
+                <TouchableOpacity
+                  style={styles.cameraButton}
+                  onPress={() => setFacing(facing === 'back' ? 'front' : 'back')}
+                >
+                  <Camera size={24} color={Colors.secondary} />
+                </TouchableOpacity>
+              </View>
+            </CameraView>
+          ) : (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.background }}>
+              <Text>Camera niet beschikbaar op web</Text>
+              <TouchableOpacity
+                style={styles.processButton}
+                onPress={() => setShowCamera(false)}
+              >
+                <Text style={styles.processButtonText}>Sluiten</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -355,19 +426,39 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
+  imageRow: {
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  imageItem: {
+    position: 'relative',
+    width: '48%',
+    marginBottom: 8,
+  },
   imagePreview: {
     width: '100%',
-    height: 200,
+    height: 120,
     borderRadius: 8,
-    marginBottom: 16,
   },
-  removeButton: {
+  removeImageButton: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  clearAllButton: {
     backgroundColor: Colors.danger,
     borderRadius: 8,
     padding: 12,
     alignItems: 'center',
+    marginTop: 16,
   },
-  removeButtonText: {
+  clearAllButtonText: {
     color: Colors.secondary,
     fontWeight: '500',
   },
@@ -419,5 +510,47 @@ const styles = StyleSheet.create({
   infoNote: {
     fontStyle: 'italic',
     color: Colors.text,
+  },
+  cameraControls: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+  },
+  cameraButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  captureSection: {
+    alignItems: 'center',
+  },
+  captureButton: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  captureButtonInner: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: Colors.secondary,
+  },
+  photoCount: {
+    color: Colors.secondary,
+    fontSize: 12,
+    marginTop: 4,
+    fontWeight: 'bold',
   },
 });

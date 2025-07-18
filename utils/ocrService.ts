@@ -8,43 +8,71 @@ interface ReceiptData {
   date?: string;
 }
 
-export const processReceiptImage = async (
-  imageUri: string,
+export const processReceiptImages = async (
+  imageUris: string[],
   apiKey: string
 ): Promise<ReceiptData | null> => {
   try {
-    // Convert image to base64
-    const base64 = await fileToBase64(imageUri);
-    
-    if (!base64) {
-      throw new Error('Failed to convert image to base64');
+    if (imageUris.length === 0) {
+      throw new Error('Geen afbeeldingen om te verwerken');
     }
+
+    // Convert all images to base64
+    const base64Images = await Promise.all(
+      imageUris.map(async (uri) => {
+        const base64 = await fileToBase64(uri);
+        if (!base64) {
+          throw new Error(`Kon afbeelding niet converteren: ${uri}`);
+        }
+        return base64;
+      })
+    );
     
+    const contentParts = [
+      { type: 'text', text: `Analyseer ${imageUris.length > 1 ? 'deze bonnen/facturen' : 'deze bon/factuur'} en extraheer de volgende informatie:` }
+    ];
+
+    // Add all images to the content
+    base64Images.forEach((base64, index) => {
+      contentParts.push({
+        type: 'text',
+        text: `Afbeelding ${index + 1}:`
+      });
+      contentParts.push({
+        type: 'image',
+        image: base64
+      });
+    });
+
     const messages = [
       {
         role: 'system',
-        content: `You are a receipt analyzer. Extract the following information from the receipt image:
-          1. Merchant/Company name
-          2. Total amount
-          3. VAT rate (if available, default to 21%)
-          4. Date of purchase
-          
-          Format your response as a JSON object with the following keys:
-          {
-            "name": "Merchant name",
-            "amount": 123.45,
-            "vatRate": 21,
-            "date": "YYYY-MM-DD"
-          }
-          
-          Only return the JSON object, nothing else.`,
+        content: `Je bent een expert in het lezen van bonnen en facturen. Analyseer ${imageUris.length > 1 ? 'alle afbeeldingen' : 'de afbeelding'} en extraheer de belangrijkste informatie.
+
+${imageUris.length > 1 ? 
+  'Als er meerdere bonnen zijn, combineer de bedragen tot één totaal. Gebruik de naam van de belangrijkste/grootste uitgave.' : 
+  'Extraheer de informatie van deze ene bon.'
+}
+
+Extraheer:
+1. Bedrijfsnaam/leverancier
+2. Totaal bedrag (combineer alle bedragen als er meerdere bonnen zijn)
+3. BTW tarief (schat in op basis van het type aankoop)
+4. Datum (gebruik de meest recente datum als er meerdere zijn)
+
+Retourneer je antwoord als een JSON object:
+{
+  "name": "Bedrijfsnaam",
+  "amount": 123.45,
+  "vatRate": 21,
+  "date": "YYYY-MM-DD"
+}
+
+Retourneer alleen het JSON object, geen andere tekst.`,
       },
       {
         role: 'user',
-        content: [
-          { type: 'text', text: 'Please analyze this receipt:' },
-          { type: 'image', image: base64 },
-        ],
+        content: contentParts,
       },
     ];
     
@@ -79,9 +107,17 @@ export const processReceiptImage = async (
     
     return null;
   } catch (error) {
-    console.error('Error processing receipt:', error);
+    console.error('Error processing receipt images:', error);
     throw error;
   }
+};
+
+// Keep the original function for backward compatibility
+export const processReceiptImage = async (
+  imageUri: string,
+  apiKey: string
+): Promise<ReceiptData | null> => {
+  return processReceiptImages([imageUri], apiKey);
 };
 
 const fileToBase64 = async (uri: string): Promise<string | null> => {

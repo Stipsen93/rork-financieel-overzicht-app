@@ -11,15 +11,16 @@ import {
   KeyboardAvoidingView,
   ActivityIndicator,
   Alert,
+  FlatList,
 } from 'react-native';
-import { Calendar, Camera, X, Send } from 'lucide-react-native';
+import { Calendar, Camera, X, Send, Trash2 } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { Image } from 'expo-image';
 import Colors from '@/constants/colors';
 import { useFinanceStore } from '@/store/financeStore';
-import { processReceiptImage } from '@/utils/ocrService';
+import { processReceiptImages } from '@/utils/ocrService';
 
 interface EntryFormProps {
   type: 'income' | 'expense';
@@ -33,7 +34,7 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
   const [vatRate, setVatRate] = useState('21');
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [imageUris, setImageUris] = useState<string[]>([]);
   const [showCamera, setShowCamera] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -58,7 +59,7 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
     setVatRate('21');
     const selectedDate = new Date(dateSelection.year, dateSelection.month - 1, new Date().getDate());
     setDate(selectedDate);
-    setImageUri(null);
+    setImageUris([]);
     setIsProcessing(false);
   };
   
@@ -85,7 +86,7 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
       amount: parseFloat(amount.replace(',', '.')),
       vatRate: parseFloat(vatRate),
       date: date.toISOString(),
-      imageUri: imageUri || undefined,
+      imageUri: imageUris.length > 0 ? imageUris[0] : undefined, // Store first image for compatibility
     };
     
     if (type === 'income') {
@@ -117,8 +118,8 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
         base64: false,
       });
       if (photo) {
-        setImageUri(photo.uri);
-        setShowCamera(false);
+        setImageUris(prev => [...prev, photo.uri]);
+        // Don't close camera automatically to allow multiple photos
       }
     } catch (error) {
       console.error('Error taking picture:', error);
@@ -126,7 +127,7 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
     }
   };
   
-  const pickImage = async () => {
+  const pickImages = async () => {
     // Request permission for image library
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
@@ -136,17 +137,23 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
     
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
+      allowsEditing: false,
+      allowsMultipleSelection: true,
       quality: 0.8,
     });
     
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      setImageUri(result.assets[0].uri);
+      const newUris = result.assets.map(asset => asset.uri);
+      setImageUris(prev => [...prev, ...newUris]);
     }
   };
   
-  const processReceipt = async () => {
-    if (!imageUri) return;
+  const removeImage = (indexToRemove: number) => {
+    setImageUris(prev => prev.filter((_, index) => index !== indexToRemove));
+  };
+  
+  const processReceipts = async () => {
+    if (imageUris.length === 0) return;
     
     if (!apiKey) {
       Alert.alert('API Sleutel Ontbreekt', 'Stel je ChatGPT API sleutel in bij profiel instellingen');
@@ -156,7 +163,7 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
     setIsProcessing(true);
     
     try {
-      const result = await processReceiptImage(imageUri, apiKey);
+      const result = await processReceiptImages(imageUris, apiKey);
       
       if (result) {
         setName(result.name || '');
@@ -165,15 +172,31 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
         if (result.date) {
           setDate(new Date(result.date));
         }
-        Alert.alert('Succes', 'Bon succesvol verwerkt!');
+        Alert.alert('Succes', `${imageUris.length} foto's succesvol verwerkt!`);
       }
     } catch (error) {
-      console.error('Error processing receipt:', error);
-      Alert.alert('Fout', 'Kon bon niet verwerken. Controleer je internetverbinding en API sleutel.');
+      console.error('Error processing receipts:', error);
+      Alert.alert('Fout', 'Kon bonnen niet verwerken. Controleer je internetverbinding en API sleutel.');
     } finally {
       setIsProcessing(false);
     }
   };
+  
+  const renderImageItem = ({ item, index }: { item: string; index: number }) => (
+    <View style={styles.imageItem}>
+      <Image
+        source={{ uri: item }}
+        style={styles.imagePreview}
+        contentFit="cover"
+      />
+      <TouchableOpacity
+        style={styles.removeImageButton}
+        onPress={() => removeImage(index)}
+      >
+        <X size={16} color={Colors.secondary} />
+      </TouchableOpacity>
+    </View>
+  );
   
   return (
     <Modal
@@ -261,46 +284,43 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
                 />
               )}
               
-              <Text style={styles.label}>Bon</Text>
+              <Text style={styles.label}>Bonnen ({imageUris.length} foto's)</Text>
               <View style={styles.imageActions}>
                 <TouchableOpacity
                   style={styles.imageButton}
                   onPress={openCamera}
                 >
-                  <Text style={styles.imageButtonText}>Foto Maken</Text>
+                  <Text style={styles.imageButtonText}>Foto's Maken</Text>
                 </TouchableOpacity>
                 
                 <TouchableOpacity
                   style={styles.imageButton}
-                  onPress={pickImage}
+                  onPress={pickImages}
                 >
-                  <Text style={styles.imageButtonText}>Afbeelding Kiezen</Text>
+                  <Text style={styles.imageButtonText}>Afbeeldingen Kiezen</Text>
                 </TouchableOpacity>
               </View>
               
-              {imageUri && (
-                <View style={styles.imagePreviewContainer}>
-                  <Image
-                    source={{ uri: imageUri }}
-                    style={styles.imagePreview}
-                    contentFit="cover"
+              {imageUris.length > 0 && (
+                <View style={styles.imagesContainer}>
+                  <FlatList
+                    data={imageUris}
+                    renderItem={renderImageItem}
+                    keyExtractor={(item, index) => `${item}-${index}`}
+                    numColumns={2}
+                    scrollEnabled={false}
+                    columnWrapperStyle={styles.imageRow}
                   />
-                  <TouchableOpacity
-                    style={styles.removeImageButton}
-                    onPress={() => setImageUri(null)}
-                  >
-                    <X size={20} color={Colors.secondary} />
-                  </TouchableOpacity>
                 </View>
               )}
               
-              {imageUri && apiKey && (
+              {imageUris.length > 0 && apiKey && (
                 <TouchableOpacity
                   style={[
                     styles.processButton,
                     isProcessing && styles.processButtonDisabled
                   ]}
-                  onPress={processReceipt}
+                  onPress={processReceipts}
                   disabled={isProcessing}
                 >
                   {isProcessing ? (
@@ -311,7 +331,7 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
                   ) : (
                     <View style={styles.processingContainer}>
                       <Send size={16} color={Colors.secondary} />
-                      <Text style={styles.processButtonText}>Verstuur Foto</Text>
+                      <Text style={styles.processButtonText}>Verstuur Foto's ({imageUris.length})</Text>
                     </View>
                   )}
                 </TouchableOpacity>
@@ -347,12 +367,15 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
                   <X size={24} color={Colors.secondary} />
                 </TouchableOpacity>
                 
-                <TouchableOpacity
-                  style={styles.captureButton}
-                  onPress={takePicture}
-                >
-                  <View style={styles.captureButtonInner} />
-                </TouchableOpacity>
+                <View style={styles.captureSection}>
+                  <TouchableOpacity
+                    style={styles.captureButton}
+                    onPress={takePicture}
+                  >
+                    <View style={styles.captureButtonInner} />
+                  </TouchableOpacity>
+                  <Text style={styles.photoCount}>{imageUris.length} foto's</Text>
+                </View>
                 
                 <TouchableOpacity
                   style={styles.cameraButton}
@@ -484,25 +507,31 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontWeight: '500',
   },
-  imagePreviewContainer: {
-    position: 'relative',
+  imagesContainer: {
     marginBottom: 16,
-    borderRadius: 8,
-    overflow: 'hidden',
+  },
+  imageRow: {
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  imageItem: {
+    position: 'relative',
+    width: '48%',
+    marginBottom: 8,
   },
   imagePreview: {
     width: '100%',
-    height: 200,
+    height: 120,
     borderRadius: 8,
   },
   removeImageButton: {
     position: 'absolute',
-    top: 8,
-    right: 8,
+    top: 4,
+    right: 4,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    borderRadius: 15,
-    width: 30,
-    height: 30,
+    borderRadius: 12,
+    width: 24,
+    height: 24,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -558,6 +587,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  captureSection: {
+    alignItems: 'center',
+  },
   captureButton: {
     width: 70,
     height: 70,
@@ -571,5 +603,11 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 30,
     backgroundColor: Colors.secondary,
+  },
+  photoCount: {
+    color: Colors.secondary,
+    fontSize: 12,
+    marginTop: 4,
+    fontWeight: 'bold',
   },
 });

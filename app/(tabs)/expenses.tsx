@@ -14,7 +14,8 @@ export default function ExpensesScreen() {
   const { expenses, dateSelection, setDateSelection, removeExpense } = useFinanceStore();
   
   const filteredExpenses = useMemo(
-    () => filterEntriesByMonth(expenses, dateSelection.year, dateSelection.month),
+    () => filterEntriesByMonth(expenses, dateSelection.year, dateSelection.month)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
     [expenses, dateSelection]
   );
   

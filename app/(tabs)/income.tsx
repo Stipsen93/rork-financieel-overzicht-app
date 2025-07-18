@@ -14,7 +14,8 @@ export default function IncomeScreen() {
   const { incomes, dateSelection, setDateSelection, removeIncome } = useFinanceStore();
   
   const filteredIncomes = useMemo(
-    () => filterEntriesByMonth(incomes, dateSelection.year, dateSelection.month),
+    () => filterEntriesByMonth(incomes, dateSelection.year, dateSelection.month)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
     [incomes, dateSelection]
   );
   

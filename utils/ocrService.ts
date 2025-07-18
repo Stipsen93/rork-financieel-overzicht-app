@@ -8,6 +8,15 @@ interface ReceiptData {
   date?: string;
 }
 
+type ContentPart =
+  | { type: 'text'; text: string; }
+  | { type: 'image'; image: string; };
+
+type CoreMessage =
+  | { role: 'system'; content: string; }
+  | { role: 'user'; content: string | Array<ContentPart>; }
+  | { role: 'assistant'; content: string | Array<ContentPart>; };
+
 export const processReceiptImages = async (
   imageUris: string[],
   apiKey: string
@@ -28,7 +37,7 @@ export const processReceiptImages = async (
       })
     );
     
-    const contentParts = [
+    const contentParts: ContentPart[] = [
       { type: 'text', text: `Analyseer ${imageUris.length > 1 ? 'deze bonnen/facturen' : 'deze bon/factuur'} en extraheer de volgende informatie:` }
     ];
 
@@ -44,7 +53,7 @@ export const processReceiptImages = async (
       });
     });
 
-    const messages = [
+    const messages: CoreMessage[] = [
       {
         role: 'system',
         content: `Je bent een expert in het lezen van bonnen en facturen. Analyseer ${imageUris.length > 1 ? 'alle afbeeldingen' : 'de afbeelding'} en extraheer de belangrijkste informatie.

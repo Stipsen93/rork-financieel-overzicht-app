@@ -8,6 +8,15 @@ interface BankTransaction {
   vatRate?: number;
 }
 
+type ContentPart =
+  | { type: 'text'; text: string; }
+  | { type: 'image'; image: string; };
+
+type CoreMessage =
+  | { role: 'system'; content: string; }
+  | { role: 'user'; content: string | Array<ContentPart>; }
+  | { role: 'assistant'; content: string | Array<ContentPart>; };
+
 export const processBankStatements = async (
   fileUris: string[],
   apiKey: string
@@ -28,7 +37,7 @@ export const processBankStatements = async (
       })
     );
     
-    const contentParts = [
+    const contentParts: ContentPart[] = [
       { type: 'text', text: `Analyseer ${fileUris.length > 1 ? 'deze bankafschriften' : 'dit bankafschrift'} en extraheer alle transacties:` }
     ];
 
@@ -44,7 +53,7 @@ export const processBankStatements = async (
       });
     });
 
-    const messages = [
+    const messages: CoreMessage[] = [
       {
         role: 'system',
         content: `Je bent een expert in het lezen van bankafschriften. Analyseer ${fileUris.length > 1 ? 'alle bankafschriften' : 'het bankafschrift'} en extraheer alle transacties.

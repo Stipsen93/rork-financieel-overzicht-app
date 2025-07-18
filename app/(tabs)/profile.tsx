@@ -18,7 +18,7 @@ export default function ProfileScreen() {
   
   const handleSaveApiKey = () => {
     setApiKey(inputApiKey.trim());
-    Alert.alert('Succes', 'Gemini API sleutel succesvol opgeslagen');
+    Alert.alert('Succes', 'ChatGPT API sleutel succesvol opgeslagen');
   };
   
   return (
@@ -37,18 +37,18 @@ export default function ProfileScreen() {
       />
       
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Gemini API Instellingen</Text>
+        <Text style={styles.sectionTitle}>ChatGPT API Instellingen</Text>
         <Text style={styles.description}>
-          Voer je Google Gemini API sleutel in om de bon scan functionaliteit en bankafschrift verwerking in te schakelen.
+          Voer je OpenAI ChatGPT API sleutel in om de bon scan functionaliteit en bankafschrift verwerking in te schakelen.
           Hiermee kan de app automatisch informatie uit je bonnen, facturen en bankafschriften halen.
         </Text>
         
-        <Text style={styles.label}>Gemini API Sleutel</Text>
+        <Text style={styles.label}>ChatGPT API Sleutel</Text>
         <TextInput
           style={styles.input}
           value={inputApiKey}
           onChangeText={setInputApiKey}
-          placeholder="Voer je Gemini API sleutel in"
+          placeholder="Voer je ChatGPT API sleutel in"
           secureTextEntry
           autoCapitalize="none"
         />
@@ -62,7 +62,7 @@ export default function ProfileScreen() {
         
         {apiKey && (
           <View style={styles.statusContainer}>
-            <Text style={styles.statusText}>✓ Gemini API sleutel is ingesteld</Text>
+            <Text style={styles.statusText}>✓ ChatGPT API sleutel is ingesteld</Text>
             <Text style={styles.statusDescription}>
               Je kunt nu foto's van bonnen, facturen en bankafschriften scannen om automatisch gegevens in te vullen.
             </Text>
@@ -73,7 +73,7 @@ export default function ProfileScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Hoe werkt het?</Text>
         <Text style={styles.description}>
-          1. Voeg je Gemini API sleutel toe{'\n'}
+          1. Voeg je ChatGPT API sleutel toe{'\n'}
           2. Ga naar Inkomen of Uitgaven{'\n'}
           3. Druk op de + of - knop om een nieuwe post toe te voegen{'\n'}
           4. Druk op "Foto Maken" of "Afbeelding Kiezen"{'\n'}
@@ -83,11 +83,11 @@ export default function ProfileScreen() {
       </View>
       
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Gemini API Sleutel Verkrijgen</Text>
+        <Text style={styles.sectionTitle}>ChatGPT API Sleutel Verkrijgen</Text>
         <Text style={styles.description}>
-          1. Ga naar Google AI Studio (aistudio.google.com){'\n'}
+          1. Ga naar OpenAI Platform (platform.openai.com){'\n'}
           2. Maak een account aan of log in{'\n'}
-          3. Ga naar "Get API Key"{'\n'}
+          3. Ga naar "API Keys" in je dashboard{'\n'}
           4. Maak een nieuwe API sleutel aan{'\n'}
           5. Kopieer de sleutel en plak deze hierboven
         </Text>
@@ -98,7 +98,7 @@ export default function ProfileScreen() {
         <Text style={styles.description}>
           Deze app helpt ondernemers hun inkomsten en uitgaven bij te houden, inclusief
           BTW berekeningen. Gebruik de camera functie om bonnen te scannen en
-          automatisch informatie te extraheren met Google Gemini AI.
+          automatisch informatie te extraheren met ChatGPT AI.
         </Text>
       </View>
       
@@ -106,7 +106,7 @@ export default function ProfileScreen() {
         <Text style={styles.sectionTitle}>Privacy</Text>
         <Text style={styles.description}>
           Je financiële gegevens worden lokaal op je apparaat opgeslagen. Bon afbeeldingen
-          en bankafschriften worden verwerkt via de Gemini API en worden niet permanent opgeslagen op
+          en bankafschriften worden verwerkt via de ChatGPT API en worden niet permanent opgeslagen op
           externe servers.
         </Text>
       </View>

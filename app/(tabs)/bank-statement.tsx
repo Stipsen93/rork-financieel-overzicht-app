@@ -115,7 +115,7 @@ export default function BankStatementScreen() {
     if (selectedFiles.length === 0) return;
     
     if (!apiKey) {
-      Alert.alert('API Sleutel Ontbreekt', 'Stel je Gemini API sleutel in via het menu');
+      Alert.alert('API Sleutel Ontbreekt', 'Stel je ChatGPT API sleutel in via het menu');
       return;
     }
     
@@ -210,7 +210,7 @@ export default function BankStatementScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Bankafschriften Verwerken</Text>
         <Text style={styles.subtitle}>
-          Maak foto's van je bankafschriften, selecteer afbeeldingen of upload PDF bestanden om automatisch alle transacties toe te voegen met Gemini AI
+          Maak foto's van je bankafschriften, selecteer afbeeldingen of upload PDF bestanden om automatisch alle transacties toe te voegen met ChatGPT AI
         </Text>
       </View>
       
@@ -291,7 +291,7 @@ export default function BankStatementScreen() {
       <View style={styles.infoSection}>
         <Text style={styles.infoTitle}>Hoe werkt het?</Text>
         <Text style={styles.infoText}>
-          1. Zorg dat je Gemini API sleutel is ingesteld{'\n'}
+          1. Zorg dat je ChatGPT API sleutel is ingesteld{'\n'}
           2. Maak duidelijke foto's van je bankafschriften, selecteer afbeeldingen of upload PDF bestanden{'\n'}
           3. Druk op "Bankafschriften Verwerken"{'\n'}
           4. De app leest automatisch alle transacties uit alle bestanden{'\n'}

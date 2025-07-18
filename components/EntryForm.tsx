@@ -156,7 +156,7 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
     if (imageUris.length === 0) return;
     
     if (!apiKey) {
-      Alert.alert('API Sleutel Ontbreekt', 'Stel je Gemini API sleutel in bij profiel instellingen');
+      Alert.alert('API Sleutel Ontbreekt', 'Stel je ChatGPT API sleutel in bij profiel instellingen');
       return;
     }
     

@@ -25,7 +25,7 @@ export default function AnnualReportScreen() {
   
   const handleGenerateReport = async () => {
     if (!apiKey) {
-      Alert.alert('API Sleutel Ontbreekt', 'Stel je Gemini API sleutel in bij profiel instellingen');
+      Alert.alert('API Sleutel Ontbreekt', 'Stel je ChatGPT API sleutel in bij profiel instellingen');
       return;
     }
     
@@ -98,7 +98,7 @@ export default function AnnualReportScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Jaarrekening Genereren</Text>
         <Text style={styles.subtitle}>
-          Selecteer een jaar om een complete jaarrekening te genereren met Gemini AI
+          Selecteer een jaar om een complete jaarrekening te genereren met ChatGPT AI
         </Text>
       </View>
       

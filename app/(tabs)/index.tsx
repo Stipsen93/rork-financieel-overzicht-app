@@ -4,12 +4,13 @@ import { useRouter } from 'expo-router';
 import { useFinanceStore } from '@/store/financeStore';
 import Colors from '@/constants/colors';
 import YearPicker from '@/components/YearPicker';
+import QuarterPicker from '@/components/QuarterPicker';
 import SummaryCard from '@/components/SummaryCard';
-import { calculateMonthlySummary, filterEntriesByYear, formatCurrency } from '@/utils/finance';
+import { calculateMonthlySummary, filterEntriesByYear, filterEntriesByQuarter, formatCurrency } from '@/utils/finance';
 
 export default function OverviewScreen() {
   const router = useRouter();
-  const { incomes, expenses, yearSelection, setYearSelection } = useFinanceStore();
+  const { incomes, expenses, yearSelection, quarterSelection, setYearSelection, setQuarterSelection } = useFinanceStore();
   
   const filteredIncomes = useMemo(
     () => filterEntriesByYear(incomes, yearSelection.year),
@@ -21,9 +22,24 @@ export default function OverviewScreen() {
     [expenses, yearSelection]
   );
   
+  const quarterIncomes = useMemo(
+    () => filterEntriesByQuarter(incomes, quarterSelection.year, quarterSelection.quarter),
+    [incomes, quarterSelection]
+  );
+  
+  const quarterExpenses = useMemo(
+    () => filterEntriesByQuarter(expenses, quarterSelection.year, quarterSelection.quarter),
+    [expenses, quarterSelection]
+  );
+  
   const summary = useMemo(
     () => calculateMonthlySummary(filteredIncomes, filteredExpenses),
     [filteredIncomes, filteredExpenses]
+  );
+  
+  const quarterSummary = useMemo(
+    () => calculateMonthlySummary(quarterIncomes, quarterExpenses),
+    [quarterIncomes, quarterExpenses]
   );
   
   const incomeExVat = useMemo(
@@ -40,6 +56,10 @@ export default function OverviewScreen() {
     setYearSelection({ year });
   };
   
+  const handleQuarterChange = (year: number, quarter: number) => {
+    setQuarterSelection({ year, quarter });
+  };
+  
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
@@ -50,88 +70,100 @@ export default function OverviewScreen() {
         />
       </View>
       
-      <View style={styles.summaryContainer}>
-        <View style={styles.rowContainer}>
-          <View style={styles.cardContainer}>
+      <View style={styles.mainContainer}>
+        <View style={styles.columnsContainer}>
+          <View style={styles.leftColumn}>
             <SummaryCard
               title="Totaal Inkomen incl BTW"
               amount={summary.totalIncome}
               isPositive={true}
             />
+            <SummaryCard
+              title="Totaal Uitgaven"
+              amount={summary.totalExpense}
+              isPositive={false}
+            />
+            <View style={styles.balanceCard}>
+              <Text style={styles.balanceTitle}>Netto Saldo incl BTW</Text>
+              <Text
+                style={[
+                  styles.balanceAmount,
+                  { color: summary.netAmount >= 0 ? Colors.success : Colors.danger },
+                ]}
+              >
+                {formatCurrency(summary.netAmount)}
+              </Text>
+            </View>
           </View>
-          <View style={styles.cardContainer}>
+          
+          <View style={styles.rightColumn}>
             <SummaryCard
               title="Totaal Inkomen ex BTW"
               amount={incomeExVat}
               isPositive={true}
             />
+            <SummaryCard
+              title="Totaal Uitgaven"
+              amount={summary.totalExpense}
+              isPositive={false}
+            />
+            <View style={styles.balanceCard}>
+              <Text style={styles.balanceTitle}>Netto Saldo ex BTW</Text>
+              <Text
+                style={[
+                  styles.balanceAmount,
+                  { color: netBalanceExVat >= 0 ? Colors.success : Colors.danger },
+                ]}
+              >
+                {formatCurrency(netBalanceExVat)}
+              </Text>
+            </View>
           </View>
         </View>
         
-        <SummaryCard
-          title="Totaal Uitgaven"
-          amount={summary.totalExpense}
-          isPositive={false}
-        />
-      </View>
-      
-      <View style={styles.balanceContainer}>
-        <View style={styles.balanceCard}>
-          <Text style={styles.balanceTitle}>Netto Saldo incl BTW</Text>
-          <Text
-            style={[
-              styles.balanceAmount,
-              { color: summary.netAmount >= 0 ? Colors.success : Colors.danger },
-            ]}
-          >
-            {formatCurrency(summary.netAmount)}
-          </Text>
+        <View style={styles.vatSection}>
+          <View style={styles.quarterPickerContainer}>
+            <Text style={styles.vatSectionTitle}>BTW Overzicht</Text>
+            <QuarterPicker
+              year={quarterSelection.year}
+              quarter={quarterSelection.quarter}
+              onSelect={handleQuarterChange}
+            />
+          </View>
+          
+          <View style={styles.vatContainer}>
+            <View style={styles.vatCard}>
+              <Text style={styles.vatTitle}>BTW te Betalen</Text>
+              <Text style={[styles.vatAmount, { color: Colors.danger }]}>
+                {formatCurrency(quarterSummary.vatToPay)}
+              </Text>
+            </View>
+            
+            <View style={styles.vatCard}>
+              <Text style={styles.vatTitle}>BTW te Vorderen</Text>
+              <Text style={[styles.vatAmount, { color: Colors.success }]}>
+                {formatCurrency(quarterSummary.vatToClaim)}
+              </Text>
+            </View>
+            
+            <View style={styles.vatCard}>
+              <Text style={styles.vatTitle}>Netto BTW</Text>
+              <Text
+                style={[
+                  styles.vatAmount,
+                  {
+                    color:
+                      quarterSummary.vatToPay - quarterSummary.vatToClaim >= 0
+                        ? Colors.danger
+                        : Colors.success,
+                  },
+                ]}
+              >
+                {formatCurrency(quarterSummary.vatToPay - quarterSummary.vatToClaim)}
+              </Text>
+            </View>
+          </View>
         </View>
-        
-        <View style={styles.balanceCard}>
-          <Text style={styles.balanceTitle}>Netto Saldo ex BTW</Text>
-          <Text
-            style={[
-              styles.balanceAmount,
-              { color: netBalanceExVat >= 0 ? Colors.success : Colors.danger },
-            ]}
-          >
-            {formatCurrency(netBalanceExVat)}
-          </Text>
-        </View>
-      </View>
-      
-      <View style={styles.vatContainer}>
-        <View style={styles.vatCard}>
-          <Text style={styles.vatTitle}>BTW te Betalen</Text>
-          <Text style={[styles.vatAmount, { color: Colors.danger }]}>
-            {formatCurrency(summary.vatToPay)}
-          </Text>
-        </View>
-        
-        <View style={styles.vatCard}>
-          <Text style={styles.vatTitle}>BTW te Vorderen</Text>
-          <Text style={[styles.vatAmount, { color: Colors.success }]}>
-            {formatCurrency(summary.vatToClaim)}
-          </Text>
-        </View>
-      </View>
-      
-      <View style={styles.netVatCard}>
-        <Text style={styles.netVatTitle}>Netto BTW</Text>
-        <Text
-          style={[
-            styles.netVatAmount,
-            {
-              color:
-                summary.vatToPay - summary.vatToClaim >= 0
-                  ? Colors.danger
-                  : Colors.success,
-            },
-          ]}
-        >
-          {formatCurrency(summary.vatToPay - summary.vatToClaim)}
-        </Text>
       </View>
       
       <View style={styles.statsContainer}>
@@ -174,28 +206,27 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 10,
   },
-  summaryContainer: {
+  mainContainer: {
     marginTop: 16,
   },
-  rowContainer: {
+  columnsContainer: {
     flexDirection: 'row',
     marginHorizontal: 16,
+    marginBottom: 16,
   },
-  cardContainer: {
+  leftColumn: {
     flex: 1,
     marginRight: 8,
   },
-  balanceContainer: {
-    flexDirection: 'row',
-    marginHorizontal: 16,
-    marginTop: 16,
+  rightColumn: {
+    flex: 1,
+    marginLeft: 8,
   },
   balanceCard: {
-    flex: 1,
     backgroundColor: Colors.card,
     borderRadius: 12,
     padding: 20,
-    marginRight: 8,
+    marginVertical: 8,
     shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -215,56 +246,52 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
   },
-  vatContainer: {
-    flexDirection: 'row',
+  vatSection: {
     marginHorizontal: 16,
-    marginTop: 16,
-  },
-  vatCard: {
-    flex: 1,
     backgroundColor: Colors.card,
     borderRadius: 12,
     padding: 16,
-    marginRight: 8,
     shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowRadius: 4,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  quarterPickerContainer: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  vatSectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: Colors.text,
+    marginBottom: 8,
+  },
+  vatContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  vatCard: {
+    flex: 1,
+    backgroundColor: Colors.background,
+    borderRadius: 8,
+    padding: 12,
+    marginHorizontal: 4,
     borderWidth: 1,
     borderColor: Colors.border,
   },
   vatTitle: {
-    fontSize: 14,
+    fontSize: 12,
     color: Colors.lightText,
     marginBottom: 4,
+    textAlign: 'center',
   },
   vatAmount: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: 'bold',
-  },
-  netVatCard: {
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    padding: 16,
-    marginHorizontal: 16,
-    marginTop: 16,
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  netVatTitle: {
-    fontSize: 14,
-    color: Colors.lightText,
-    marginBottom: 4,
-  },
-  netVatAmount: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    textAlign: 'center',
   },
   statsContainer: {
     flexDirection: 'row',

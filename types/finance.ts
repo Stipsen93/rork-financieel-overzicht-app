@@ -25,3 +25,8 @@ export interface DateSelection {
 export interface YearSelection {
   year: number;
 }
+
+export interface QuarterSelection {
+  year: number;
+  quarter: number;
+}

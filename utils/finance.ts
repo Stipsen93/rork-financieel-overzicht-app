@@ -27,6 +27,16 @@ export const getMonthName = (month: number): string => {
   return date.toLocaleString('nl-NL', { month: 'long' });
 };
 
+export const getQuarterName = (quarter: number): string => {
+  const quarterNames = {
+    1: '1e kwartaal',
+    2: '2e kwartaal', 
+    3: '3e kwartaal',
+    4: '4e kwartaal'
+  };
+  return quarterNames[quarter as keyof typeof quarterNames] || '1e kwartaal';
+};
+
 export const calculateMonthlySummary = (
   incomes: FinanceEntry[],
   expenses: FinanceEntry[]
@@ -66,5 +76,27 @@ export const filterEntriesByYear = (
   return entries.filter((entry) => {
     const entryDate = new Date(entry.date);
     return entryDate.getFullYear() === year;
+  });
+};
+
+export const filterEntriesByQuarter = (
+  entries: FinanceEntry[],
+  year: number,
+  quarter: number
+): FinanceEntry[] => {
+  return entries.filter((entry) => {
+    const entryDate = new Date(entry.date);
+    const entryYear = entryDate.getFullYear();
+    const entryMonth = entryDate.getMonth() + 1; // getMonth() returns 0-11
+    
+    if (entryYear !== year) return false;
+    
+    switch (quarter) {
+      case 1: return entryMonth >= 1 && entryMonth <= 3;
+      case 2: return entryMonth >= 4 && entryMonth <= 6;
+      case 3: return entryMonth >= 7 && entryMonth <= 9;
+      case 4: return entryMonth >= 10 && entryMonth <= 12;
+      default: return false;
+    }
   });
 };

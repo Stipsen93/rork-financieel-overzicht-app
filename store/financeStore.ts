@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { FinanceEntry, DateSelection, YearSelection } from '@/types/finance';
+import { FinanceEntry, DateSelection, YearSelection, QuarterSelection } from '@/types/finance';
 import { calculateVatAmount } from '@/utils/finance';
 
 interface FinanceState {
@@ -9,6 +9,7 @@ interface FinanceState {
   expenses: FinanceEntry[];
   dateSelection: DateSelection;
   yearSelection: YearSelection;
+  quarterSelection: QuarterSelection;
   apiKey: string | null;
   
   // Actions
@@ -18,6 +19,7 @@ interface FinanceState {
   removeExpense: (id: string) => void;
   setDateSelection: (dateSelection: DateSelection) => void;
   setYearSelection: (yearSelection: YearSelection) => void;
+  setQuarterSelection: (quarterSelection: QuarterSelection) => void;
   setApiKey: (apiKey: string) => void;
 }
 
@@ -32,6 +34,10 @@ export const useFinanceStore = create<FinanceState>()(
       },
       yearSelection: {
         year: new Date().getFullYear(),
+      },
+      quarterSelection: {
+        year: new Date().getFullYear(),
+        quarter: Math.ceil((new Date().getMonth() + 1) / 3),
       },
       apiKey: null,
       
@@ -79,6 +85,10 @@ export const useFinanceStore = create<FinanceState>()(
       
       setYearSelection: (yearSelection) => {
         set({ yearSelection });
+      },
+      
+      setQuarterSelection: (quarterSelection) => {
+        set({ quarterSelection });
       },
       
       setApiKey: (apiKey) => {

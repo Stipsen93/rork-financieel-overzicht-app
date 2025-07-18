@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Tabs } from 'expo-router';
-import { TouchableOpacity, View } from 'react-native';
+import { TouchableOpacity, View, Text } from 'react-native';
 import { PieChart, TrendingUp, TrendingDown, Menu } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Colors from '@/constants/colors';
@@ -37,6 +37,21 @@ export default function TabLayout() {
             color: Colors.text,
             fontWeight: 'bold',
           },
+          headerTitle: ({ children }) => (
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={{ color: Colors.text, fontWeight: 'bold', fontSize: 17 }}>
+                {children}
+              </Text>
+              <Text style={{ 
+                color: Colors.lightText, 
+                fontSize: 12, 
+                marginLeft: 8,
+                fontWeight: '500'
+              }}>
+                Versie 1
+              </Text>
+            </View>
+          ),
           headerRight: () => (
             <TouchableOpacity
               style={{ marginRight: 15 }}

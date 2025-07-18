@@ -23,6 +23,7 @@ interface FinanceState {
   setYearSelection: (yearSelection: YearSelection) => void;
   setQuarterSelection: (quarterSelection: QuarterSelection) => void;
   setApiKey: (apiKey: string) => void;
+  resetAllData: () => void;
 }
 
 export const useFinanceStore = create<FinanceState>()(
@@ -125,6 +126,13 @@ export const useFinanceStore = create<FinanceState>()(
       
       setApiKey: (apiKey) => {
         set({ apiKey });
+      },
+      
+      resetAllData: () => {
+        set({
+          incomes: [],
+          expenses: [],
+        });
       },
     }),
     {

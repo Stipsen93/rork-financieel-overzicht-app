@@ -9,7 +9,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { X, Key, FileText } from 'lucide-react-native';
+import { X, Key, FileText, RotateCcw } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 
 interface SlideMenuProps {
@@ -88,6 +88,14 @@ export default function SlideMenu({ visible, onClose }: SlideMenuProps) {
             >
               <FileText size={20} color={Colors.text} />
               <Text style={styles.menuItemText}>Bankafschrift</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => handleMenuItemPress('/(tabs)/reset')}
+            >
+              <RotateCcw size={20} color={Colors.danger} />
+              <Text style={[styles.menuItemText, { color: Colors.danger }]}>Reset</Text>
             </TouchableOpacity>
           </View>
         </Animated.View>

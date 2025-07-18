@@ -80,6 +80,12 @@ export default function TabLayout() {
             href: null, // Hide from tab bar
           }}
         />
+        <Tabs.Screen
+          name="reset"
+          options={{
+            href: null, // Hide from tab bar
+          }}
+        />
       </Tabs>
       
       <SlideMenu

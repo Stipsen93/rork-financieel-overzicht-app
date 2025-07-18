@@ -20,8 +20,14 @@ import Colors from '@/constants/colors';
 import { useFinanceStore } from '@/store/financeStore';
 import { processBankStatements } from '@/utils/bankStatementService';
 
+interface SelectedFile {
+  uri: string;
+  type: 'image' | 'pdf';
+  name?: string;
+}
+
 export default function BankStatementScreen() {
-  const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [facing, setFacing] = useState<CameraType>('back');
@@ -50,7 +56,7 @@ export default function BankStatementScreen() {
         base64: false,
       });
       if (photo) {
-        setSelectedFiles(prev => [...prev, photo.uri]);
+        setSelectedFiles(prev => [...prev, { uri: photo.uri, type: 'image' }]);
         // Don't close camera automatically to allow multiple photos
       }
     } catch (error) {
@@ -74,8 +80,8 @@ export default function BankStatementScreen() {
     });
     
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      const newUris = result.assets.map(asset => asset.uri);
-      setSelectedFiles(prev => [...prev, ...newUris]);
+      const newFiles = result.assets.map(asset => ({ uri: asset.uri, type: 'image' as const }));
+      setSelectedFiles(prev => [...prev, ...newFiles]);
     }
   };
 
@@ -88,20 +94,12 @@ export default function BankStatementScreen() {
       });
       
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const pdfFiles = result.assets.filter(asset => asset.mimeType?.includes('pdf'));
-        
-        if (pdfFiles.length > 0) {
-          Alert.alert(
-            'PDF Niet Ondersteund',
-            'PDF bankafschriften worden momenteel niet ondersteund. Maak foto\'s van je bankafschriften of gebruik afbeeldingen.',
-            [{ text: 'OK' }]
-          );
-          return;
-        }
-        
-        const imageFiles = result.assets.filter(asset => !asset.mimeType?.includes('pdf'));
-        const newUris = imageFiles.map(asset => asset.uri);
-        setSelectedFiles(prev => [...prev, ...newUris]);
+        const newFiles = result.assets.map(asset => ({
+          uri: asset.uri,
+          type: asset.mimeType?.includes('pdf') ? 'pdf' as const : 'image' as const,
+          name: asset.name,
+        }));
+        setSelectedFiles(prev => [...prev, ...newFiles]);
       }
     } catch (error) {
       console.error('Error picking document:', error);
@@ -148,7 +146,7 @@ export default function BankStatementScreen() {
         
         Alert.alert(
           'Succes', 
-          `${transactions.length} transacties succesvol verwerkt en toegevoegd uit ${selectedFiles.length} afbeelding(en)!`,
+          `${transactions.length} transacties succesvol verwerkt en toegevoegd uit ${selectedFiles.length} bestand(en)!`,
           [
             {
               text: 'OK',
@@ -169,15 +167,24 @@ export default function BankStatementScreen() {
     }
   };
 
-  const renderImageItem = ({ item, index }: { item: string; index: number }) => (
-    <View style={styles.imageItem}>
-      <Image
-        source={{ uri: item }}
-        style={styles.imagePreview}
-        contentFit="cover"
-      />
+  const renderFileItem = ({ item, index }: { item: SelectedFile; index: number }) => (
+    <View style={styles.fileItem}>
+      {item.type === 'image' ? (
+        <Image
+          source={{ uri: item.uri }}
+          style={styles.imagePreview}
+          contentFit="cover"
+        />
+      ) : (
+        <View style={styles.pdfPreview}>
+          <FileText size={40} color={Colors.text} />
+          <Text style={styles.pdfName} numberOfLines={2}>
+            {item.name || 'PDF Bestand'}
+          </Text>
+        </View>
+      )}
       <TouchableOpacity
-        style={styles.removeImageButton}
+        style={styles.removeFileButton}
         onPress={() => removeFile(index)}
       >
         <X size={16} color={Colors.secondary} />
@@ -203,12 +210,12 @@ export default function BankStatementScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Bankafschriften Verwerken</Text>
         <Text style={styles.subtitle}>
-          Maak foto's van je bankafschriften of selecteer meerdere afbeeldingen om automatisch alle transacties toe te voegen
+          Maak foto's van je bankafschriften, selecteer afbeeldingen of upload PDF bestanden om automatisch alle transacties toe te voegen
         </Text>
       </View>
       
       <View style={styles.uploadSection}>
-        <Text style={styles.sectionTitle}>Selecteer Afbeeldingen ({selectedFiles.length} geselecteerd)</Text>
+        <Text style={styles.sectionTitle}>Selecteer Bestanden ({selectedFiles.length} geselecteerd)</Text>
         
         <View style={styles.uploadButtons}>
           <TouchableOpacity
@@ -226,33 +233,35 @@ export default function BankStatementScreen() {
             <Upload size={24} color={Colors.text} />
             <Text style={styles.uploadButtonText}>Afbeeldingen Kiezen</Text>
           </TouchableOpacity>
-        </View>
-        
-        <View style={styles.warningContainer}>
-          <Text style={styles.warningText}>
-            ⚠️ Momenteel worden alleen afbeeldingen ondersteund. PDF bestanden kunnen niet verwerkt worden.
-          </Text>
+          
+          <TouchableOpacity
+            style={styles.uploadButton}
+            onPress={pickDocument}
+          >
+            <FileText size={24} color={Colors.text} />
+            <Text style={styles.uploadButtonText}>PDF Bestanden</Text>
+          </TouchableOpacity>
         </View>
       </View>
       
       {selectedFiles.length > 0 && (
         <View style={styles.previewSection}>
-          <Text style={styles.sectionTitle}>Geselecteerde Afbeeldingen ({selectedFiles.length})</Text>
+          <Text style={styles.sectionTitle}>Geselecteerde Bestanden ({selectedFiles.length})</Text>
           
           <FlatList
             data={selectedFiles}
-            renderItem={renderImageItem}
-            keyExtractor={(item, index) => `${item}-${index}`}
+            renderItem={renderFileItem}
+            keyExtractor={(item, index) => `${item.uri}-${index}`}
             numColumns={2}
             scrollEnabled={false}
-            columnWrapperStyle={styles.imageRow}
+            columnWrapperStyle={styles.fileRow}
           />
           
           <TouchableOpacity
             style={styles.clearAllButton}
             onPress={() => setSelectedFiles([])}
           >
-            <Text style={styles.clearAllButtonText}>Alle Afbeeldingen Verwijderen</Text>
+            <Text style={styles.clearAllButtonText}>Alle Bestanden Verwijderen</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -273,7 +282,7 @@ export default function BankStatementScreen() {
             </View>
           ) : (
             <Text style={styles.processButtonText}>
-              Bankafschriften Verwerken ({selectedFiles.length} afbeelding{selectedFiles.length !== 1 ? 'en' : ''})
+              Bankafschriften Verwerken ({selectedFiles.length} bestand{selectedFiles.length !== 1 ? 'en' : ''})
             </Text>
           )}
         </TouchableOpacity>
@@ -283,9 +292,9 @@ export default function BankStatementScreen() {
         <Text style={styles.infoTitle}>Hoe werkt het?</Text>
         <Text style={styles.infoText}>
           1. Zorg dat je ChatGPT API sleutel is ingesteld{'\n'}
-          2. Maak duidelijke foto's van je bankafschriften of selecteer meerdere afbeeldingen{'\n'}
+          2. Maak duidelijke foto's van je bankafschriften, selecteer afbeeldingen of upload PDF bestanden{'\n'}
           3. Druk op "Bankafschriften Verwerken"{'\n'}
-          4. De app leest automatisch alle transacties uit alle afbeeldingen{'\n'}
+          4. De app leest automatisch alle transacties uit alle bestanden{'\n'}
           5. Inkomsten en uitgaven worden automatisch toegevoegd{'\n'}
           {'\n'}
           <Text style={styles.infoNote}>
@@ -318,7 +327,7 @@ export default function BankStatementScreen() {
                   >
                     <View style={styles.captureButtonInner} />
                   </TouchableOpacity>
-                  <Text style={styles.photoCount}>{selectedFiles.length} foto's</Text>
+                  <Text style={styles.photoCount}>{selectedFiles.filter(f => f.type === 'image').length} foto's</Text>
                 </View>
                 
                 <TouchableOpacity
@@ -397,25 +406,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 16,
     alignItems: 'center',
-    marginHorizontal: 4,
+    marginHorizontal: 2,
   },
   uploadButtonText: {
     color: Colors.text,
     fontWeight: '500',
     marginTop: 8,
     fontSize: 12,
-    textAlign: 'center',
-  },
-  warningContainer: {
-    backgroundColor: '#FFF3CD',
-    borderRadius: 8,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#FFEAA7',
-  },
-  warningText: {
-    fontSize: 14,
-    color: '#856404',
     textAlign: 'center',
   },
   previewSection: {
@@ -426,11 +423,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
-  imageRow: {
+  fileRow: {
     justifyContent: 'space-between',
     marginBottom: 8,
   },
-  imageItem: {
+  fileItem: {
     position: 'relative',
     width: '48%',
     marginBottom: 8,
@@ -440,7 +437,24 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: 8,
   },
-  removeImageButton: {
+  pdfPreview: {
+    width: '100%',
+    height: 120,
+    borderRadius: 8,
+    backgroundColor: Colors.background,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 8,
+  },
+  pdfName: {
+    fontSize: 12,
+    color: Colors.text,
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  removeFileButton: {
     position: 'absolute',
     top: 4,
     right: 4,

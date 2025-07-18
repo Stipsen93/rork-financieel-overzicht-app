@@ -8,9 +8,16 @@ interface BankTransaction {
   vatRate?: number;
 }
 
+interface SelectedFile {
+  uri: string;
+  type: 'image' | 'pdf';
+  name?: string;
+}
+
 type ContentPart =
   | { type: 'text'; text: string; }
-  | { type: 'image'; image: string; };
+  | { type: 'image'; image: string; }
+  | { type: 'pdf'; pdf: string; };
 
 type CoreMessage =
   | { role: 'system'; content: string; }
@@ -18,45 +25,53 @@ type CoreMessage =
   | { role: 'assistant'; content: string | Array<ContentPart>; };
 
 export const processBankStatements = async (
-  fileUris: string[],
+  files: SelectedFile[],
   apiKey: string
 ): Promise<BankTransaction[] | null> => {
   try {
-    if (fileUris.length === 0) {
+    if (files.length === 0) {
       throw new Error('Geen bestanden om te verwerken');
     }
 
-    // Convert all images to base64
-    const base64Images = await Promise.all(
-      fileUris.map(async (uri) => {
-        const base64 = await fileToBase64(uri);
+    // Convert all files to base64
+    const base64Files = await Promise.all(
+      files.map(async (file) => {
+        const base64 = await fileToBase64(file.uri);
         if (!base64) {
-          throw new Error(`Kon afbeelding niet converteren: ${uri}`);
+          throw new Error(`Kon bestand niet converteren: ${file.uri}`);
         }
-        return base64;
+        return { base64, type: file.type, name: file.name };
       })
     );
     
     const contentParts: ContentPart[] = [
-      { type: 'text', text: `Analyseer ${fileUris.length > 1 ? 'deze bankafschriften' : 'dit bankafschrift'} en extraheer alle transacties:` }
+      { type: 'text', text: `Analyseer ${files.length > 1 ? 'deze bankafschriften' : 'dit bankafschrift'} en extraheer alle transacties:` }
     ];
 
-    // Add all images to the content
-    base64Images.forEach((base64, index) => {
+    // Add all files to the content
+    base64Files.forEach((file, index) => {
       contentParts.push({
         type: 'text',
-        text: `Bankafschrift ${index + 1}:`
+        text: `Bankafschrift ${index + 1} (${file.type === 'pdf' ? 'PDF' : 'Afbeelding'}${file.name ? ` - ${file.name}` : ''}):`
       });
-      contentParts.push({
-        type: 'image',
-        image: base64
-      });
+      
+      if (file.type === 'pdf') {
+        contentParts.push({
+          type: 'pdf',
+          pdf: file.base64
+        });
+      } else {
+        contentParts.push({
+          type: 'image',
+          image: file.base64
+        });
+      }
     });
 
     const messages: CoreMessage[] = [
       {
         role: 'system',
-        content: `Je bent een expert in het lezen van bankafschriften. Analyseer ${fileUris.length > 1 ? 'alle bankafschriften' : 'het bankafschrift'} en extraheer alle transacties.
+        content: `Je bent een expert in het lezen van bankafschriften in zowel afbeelding als PDF formaat. Analyseer ${files.length > 1 ? 'alle bankafschriften' : 'het bankafschrift'} en extraheer alle transacties.
 
 BELANGRIJK: Negeer alle transacties die gaan naar of van spaarrekeningen. Dit zijn interne overboekingen en geen echte inkomsten of uitgaven.
 
@@ -73,8 +88,8 @@ Voor elke ECHTE transactie heb ik nodig:
 3. Bedrag (positief voor inkomsten, negatief voor uitgaven)
 4. BTW tarief (schat in op basis van het type transactie: 21% voor meeste diensten, 9% voor voedsel/boeken, 0% voor bankkosten/rente)
 
-${fileUris.length > 1 ? 
-  'Combineer alle transacties van alle bankafschriften in één lijst.' : 
+${files.length > 1 ? 
+  'Combineer alle transacties van alle bankafschriften (zowel PDF als afbeeldingen) in één lijst.' : 
   'Extraheer alle transacties van dit bankafschrift.'
 }
 
@@ -84,6 +99,9 @@ Focus alleen op:
 - Bankkosten
 - Verzekeringen
 - Andere bedrijfsgerelateerde transacties
+
+Voor PDF bestanden: Lees de volledige inhoud van het PDF bestand en extraheer alle transacties uit alle pagina's.
+Voor afbeeldingen: Analyseer de afbeelding en extraheer alle zichtbare transacties.
 
 Retourneer je antwoord als een JSON array met deze structuur:
 [
@@ -167,16 +185,13 @@ export const processBankStatement = async (
   fileType: 'image' | 'pdf',
   apiKey: string
 ): Promise<BankTransaction[] | null> => {
-  if (fileType === 'pdf') {
-    throw new Error('PDF verwerking wordt momenteel niet ondersteund. Gebruik een foto van het bankafschrift.');
-  }
-  return processBankStatements([fileUri], apiKey);
+  return processBankStatements([{ uri: fileUri, type: fileType }], apiKey);
 };
 
 const fileToBase64 = async (uri: string): Promise<string | null> => {
   try {
     if (Platform.OS === 'web') {
-      return await fetchImageAsBase64(uri);
+      return await fetchFileAsBase64(uri);
     } else {
       const base64 = await FileSystem.readAsStringAsync(uri, {
         encoding: FileSystem.EncodingType.Base64,
@@ -192,7 +207,7 @@ const fileToBase64 = async (uri: string): Promise<string | null> => {
   }
 };
 
-const fetchImageAsBase64 = async (uri: string): Promise<string> => {
+const fetchFileAsBase64 = async (uri: string): Promise<string> => {
   const response = await fetch(uri);
   const blob = await response.blob();
   
@@ -208,6 +223,8 @@ const getMimeType = (uri: string): string => {
   const extension = uri.split('.').pop()?.toLowerCase();
   
   switch (extension) {
+    case 'pdf':
+      return 'application/pdf';
     case 'jpg':
     case 'jpeg':
       return 'image/jpeg';
@@ -218,6 +235,6 @@ const getMimeType = (uri: string): string => {
     case 'heic':
       return 'image/heic';
     default:
-      return 'image/jpeg'; // Default to JPEG
+      return 'application/octet-stream';
   }
 };

@@ -26,6 +26,16 @@ export default function OverviewScreen() {
     [filteredIncomes, filteredExpenses]
   );
   
+  const incomeExVat = useMemo(
+    () => summary.totalIncome - summary.vatToPay,
+    [summary.totalIncome, summary.vatToPay]
+  );
+  
+  const netBalanceExVat = useMemo(
+    () => incomeExVat - summary.totalExpense,
+    [incomeExVat, summary.totalExpense]
+  );
+  
   const handleYearChange = (year: number) => {
     setYearSelection({ year });
   };
@@ -42,8 +52,13 @@ export default function OverviewScreen() {
       
       <View style={styles.summaryContainer}>
         <SummaryCard
-          title="Totaal Inkomen"
+          title="Totaal Inkomen incl BTW"
           amount={summary.totalIncome}
+          isPositive={true}
+        />
+        <SummaryCard
+          title="Totaal Inkomen ex BTW"
+          amount={incomeExVat}
           isPositive={true}
         />
         <SummaryCard
@@ -53,16 +68,30 @@ export default function OverviewScreen() {
         />
       </View>
       
-      <View style={styles.balanceCard}>
-        <Text style={styles.balanceTitle}>Netto Saldo</Text>
-        <Text
-          style={[
-            styles.balanceAmount,
-            { color: summary.netAmount >= 0 ? Colors.success : Colors.danger },
-          ]}
-        >
-          {formatCurrency(summary.netAmount)}
-        </Text>
+      <View style={styles.balanceContainer}>
+        <View style={styles.balanceCard}>
+          <Text style={styles.balanceTitle}>Netto Saldo incl BTW</Text>
+          <Text
+            style={[
+              styles.balanceAmount,
+              { color: summary.netAmount >= 0 ? Colors.success : Colors.danger },
+            ]}
+          >
+            {formatCurrency(summary.netAmount)}
+          </Text>
+        </View>
+        
+        <View style={styles.balanceCard}>
+          <Text style={styles.balanceTitle}>Netto Saldo ex BTW</Text>
+          <Text
+            style={[
+              styles.balanceAmount,
+              { color: netBalanceExVat >= 0 ? Colors.success : Colors.danger },
+            ]}
+          >
+            {formatCurrency(netBalanceExVat)}
+          </Text>
+        </View>
       </View>
       
       <View style={styles.vatContainer}>
@@ -141,11 +170,17 @@ const styles = StyleSheet.create({
   summaryContainer: {
     marginTop: 16,
   },
+  balanceContainer: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginTop: 16,
+  },
   balanceCard: {
+    flex: 1,
     backgroundColor: Colors.card,
     borderRadius: 12,
     padding: 20,
-    margin: 16,
+    marginRight: 8,
     shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -155,18 +190,20 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   balanceTitle: {
-    fontSize: 16,
+    fontSize: 14,
     color: Colors.lightText,
     marginBottom: 8,
+    textAlign: 'center',
   },
   balanceAmount: {
-    fontSize: 32,
+    fontSize: 20,
     fontWeight: 'bold',
+    textAlign: 'center',
   },
   vatContainer: {
     flexDirection: 'row',
     marginHorizontal: 16,
-    marginBottom: 16,
+    marginTop: 16,
   },
   vatCard: {
     flex: 1,
@@ -196,7 +233,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginHorizontal: 16,
-    marginBottom: 16,
+    marginTop: 16,
     shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -217,7 +254,7 @@ const styles = StyleSheet.create({
   statsContainer: {
     flexDirection: 'row',
     marginHorizontal: 16,
-    marginBottom: 16,
+    marginTop: 16,
   },
   statCard: {
     flex: 1,

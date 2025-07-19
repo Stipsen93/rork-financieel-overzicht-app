@@ -7,10 +7,12 @@ import SummaryCard from '@/components/SummaryCard';
 import FinanceEntryItem from '@/components/FinanceEntryItem';
 import FloatingActionButton from '@/components/FloatingActionButton';
 import EntryForm from '@/components/EntryForm';
+import SearchBar from '@/components/SearchBar';
 import { filterEntriesByMonth } from '@/utils/finance';
 
 export default function IncomeScreen() {
   const [showForm, setShowForm] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const { incomes, dateSelection, setDateSelection, removeIncome } = useFinanceStore();
   
   const filteredIncomes = useMemo(
@@ -18,6 +20,17 @@ export default function IncomeScreen() {
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
     [incomes, dateSelection]
   );
+
+  const searchedIncomes = useMemo(() => {
+    if (!searchQuery.trim()) return filteredIncomes;
+    
+    const query = searchQuery.toLowerCase();
+    return filteredIncomes.filter(income => 
+      income.name.toLowerCase().includes(query) ||
+      income.amount.toString().includes(query) ||
+      new Date(income.date).toLocaleDateString('nl-NL').includes(query)
+    );
+  }, [filteredIncomes, searchQuery]);
   
   const totalIncome = useMemo(
     () => filteredIncomes.reduce((sum, income) => sum + income.amount, 0),
@@ -48,18 +61,29 @@ export default function IncomeScreen() {
         <SummaryCard title="BTW te Betalen" amount={totalVat} isPositive={false} />
       </View>
       
+      <SearchBar
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+        placeholder="Zoek op naam, bedrag of datum..."
+      />
+      
       <View style={styles.listContainer}>
-        <Text style={styles.listTitle}>Inkomen Posten</Text>
+        <Text style={styles.listTitle}>
+          Inkomen Posten {searchQuery ? `(${searchedIncomes.length} van ${filteredIncomes.length})` : ''}
+        </Text>
         
-        {filteredIncomes.length === 0 ? (
+        {searchedIncomes.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyStateText}>
-              Geen inkomen posten voor deze maand
+              {searchQuery 
+                ? `Geen inkomen posten gevonden voor "${searchQuery}"`
+                : 'Geen inkomen posten voor deze maand'
+              }
             </Text>
           </View>
         ) : (
           <FlatList
-            data={filteredIncomes}
+            data={searchedIncomes}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
               <FinanceEntryItem entry={item} onDelete={removeIncome} />
@@ -97,7 +121,7 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     flex: 1,
-    marginTop: 16,
+    marginTop: 8,
   },
   listTitle: {
     fontSize: 18,
@@ -119,5 +143,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.lightText,
     textAlign: 'center',
+    paddingHorizontal: 20,
   },
 });

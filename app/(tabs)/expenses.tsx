@@ -7,10 +7,12 @@ import SummaryCard from '@/components/SummaryCard';
 import FinanceEntryItem from '@/components/FinanceEntryItem';
 import FloatingActionButton from '@/components/FloatingActionButton';
 import EntryForm from '@/components/EntryForm';
+import SearchBar from '@/components/SearchBar';
 import { filterEntriesByMonth } from '@/utils/finance';
 
 export default function ExpensesScreen() {
   const [showForm, setShowForm] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const { expenses, dateSelection, setDateSelection, removeExpense } = useFinanceStore();
   
   const filteredExpenses = useMemo(
@@ -18,6 +20,17 @@ export default function ExpensesScreen() {
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
     [expenses, dateSelection]
   );
+
+  const searchedExpenses = useMemo(() => {
+    if (!searchQuery.trim()) return filteredExpenses;
+    
+    const query = searchQuery.toLowerCase();
+    return filteredExpenses.filter(expense => 
+      expense.name.toLowerCase().includes(query) ||
+      expense.amount.toString().includes(query) ||
+      new Date(expense.date).toLocaleDateString('nl-NL').includes(query)
+    );
+  }, [filteredExpenses, searchQuery]);
   
   const totalExpense = useMemo(
     () => filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0),
@@ -48,18 +61,29 @@ export default function ExpensesScreen() {
         <SummaryCard title="BTW te Vorderen" amount={totalVat} isPositive={true} />
       </View>
       
+      <SearchBar
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+        placeholder="Zoek op naam, bedrag of datum..."
+      />
+      
       <View style={styles.listContainer}>
-        <Text style={styles.listTitle}>Uitgaven Posten</Text>
+        <Text style={styles.listTitle}>
+          Uitgaven Posten {searchQuery ? `(${searchedExpenses.length} van ${filteredExpenses.length})` : ''}
+        </Text>
         
-        {filteredExpenses.length === 0 ? (
+        {searchedExpenses.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyStateText}>
-              Geen uitgaven posten voor deze maand
+              {searchQuery 
+                ? `Geen uitgaven posten gevonden voor "${searchQuery}"`
+                : 'Geen uitgaven posten voor deze maand'
+              }
             </Text>
           </View>
         ) : (
           <FlatList
-            data={filteredExpenses}
+            data={searchedExpenses}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
               <FinanceEntryItem entry={item} onDelete={removeExpense} />
@@ -97,7 +121,7 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     flex: 1,
-    marginTop: 16,
+    marginTop: 8,
   },
   listTitle: {
     fontSize: 18,
@@ -119,5 +143,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.lightText,
     textAlign: 'center',
+    paddingHorizontal: 20,
   },
 });

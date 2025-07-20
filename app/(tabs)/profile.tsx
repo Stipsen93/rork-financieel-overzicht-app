@@ -73,11 +73,16 @@ export default function ProfileScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Hoe werkt het?</Text>
         <Text style={styles.description}>
-          1. Voeg je ChatGPT API sleutel toe{'\n'}
-          2. Ga naar Inkomen of Uitgaven{'\n'}
-          3. Druk op de + of - knop om een nieuwe post toe te voegen{'\n'}
-          4. Druk op "Foto Maken" of "Afbeelding Kiezen"{'\n'}
-          5. De app leest automatisch de bon uit en vult de gegevens in{'\n'}
+          1. Voeg je ChatGPT API sleutel toe{'
+'}
+          2. Ga naar Inkomen of Uitgaven{'
+'}
+          3. Druk op de + of - knop om een nieuwe post toe te voegen{'
+'}
+          4. Druk op "Foto Maken" of "Afbeelding Kiezen"{'
+'}
+          5. De app leest automatisch de bon uit en vult de gegevens in{'
+'}
           6. Voor bankafschriften: ga naar het menu en selecteer "Bankafschrift"
         </Text>
       </View>
@@ -85,10 +90,14 @@ export default function ProfileScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>ChatGPT API Sleutel Verkrijgen</Text>
         <Text style={styles.description}>
-          1. Ga naar OpenAI Platform (platform.openai.com){'\n'}
-          2. Maak een account aan of log in{'\n'}
-          3. Ga naar "API Keys" in je dashboard{'\n'}
-          4. Maak een nieuwe API sleutel aan{'\n'}
+          1. Ga naar OpenAI Platform (platform.openai.com){'
+'}
+          2. Maak een account aan of log in{'
+'}
+          3. Ga naar "API Keys" in je dashboard{'
+'}
+          4. Maak een nieuwe API sleutel aan{'
+'}
           5. Kopieer de sleutel en plak deze hierboven
         </Text>
       </View>

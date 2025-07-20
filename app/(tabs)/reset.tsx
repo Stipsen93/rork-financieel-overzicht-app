@@ -103,11 +103,16 @@ export default function ResetScreen() {
       <View style={styles.infoContainer}>
         <Text style={styles.infoTitle}>Wat wordt er verwijderd?</Text>
         <Text style={styles.infoText}>
-          • Alle inkomen posten{'\n'}
-          • Alle uitgaven posten{'\n'}
-          • Alle bijbehorende foto's en notities{'\n'}
-          • Alle BTW berekeningen{'\n'}
-          {'\n'}
+          • Alle inkomen posten{'
+'}
+          • Alle uitgaven posten{'
+'}
+          • Alle bijbehorende foto's en notities{'
+'}
+          • Alle BTW berekeningen{'
+'}
+          {'
+'}
           <Text style={styles.infoNote}>
             Je API sleutel en andere instellingen blijven behouden.
           </Text>

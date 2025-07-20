@@ -291,12 +291,18 @@ export default function BankStatementScreen() {
       <View style={styles.infoSection}>
         <Text style={styles.infoTitle}>Hoe werkt het?</Text>
         <Text style={styles.infoText}>
-          1. Zorg dat je ChatGPT API sleutel is ingesteld{'\n'}
-          2. Maak duidelijke foto's van je bankafschriften, selecteer afbeeldingen of upload PDF bestanden{'\n'}
-          3. Druk op "Bankafschriften Verwerken"{'\n'}
-          4. De app leest automatisch alle transacties uit alle bestanden{'\n'}
-          5. Inkomsten en uitgaven worden automatisch toegevoegd{'\n'}
-          {'\n'}
+          1. Zorg dat je ChatGPT API sleutel is ingesteld{'
+'}
+          2. Maak duidelijke foto's van je bankafschriften, selecteer afbeeldingen of upload PDF bestanden{'
+'}
+          3. Druk op "Bankafschriften Verwerken"{'
+'}
+          4. De app leest automatisch alle transacties uit alle bestanden{'
+'}
+          5. Inkomsten en uitgaven worden automatisch toegevoegd{'
+'}
+          {'
+'}
           <Text style={styles.infoNote}>
             Let op: Controleer altijd de toegevoegde transacties en pas indien nodig aan.
           </Text>

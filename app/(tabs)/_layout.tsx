@@ -93,18 +93,21 @@ export default function TabLayout() {
         <Tabs.Screen
           name="profile"
           options={{
+            title: 'API Sleutel',
             href: null, // Hide from tab bar
           }}
         />
         <Tabs.Screen
           name="bank-statement"
           options={{
+            title: 'Bankafschrift',
             href: null, // Hide from tab bar
           }}
         />
         <Tabs.Screen
           name="backup"
           options={{
+            title: 'Back-up',
             href: null, // Hide from tab bar
           }}
         />

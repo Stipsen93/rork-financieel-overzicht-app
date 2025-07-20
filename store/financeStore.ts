@@ -11,6 +11,8 @@ interface FinanceState {
   yearSelection: YearSelection;
   quarterSelection: QuarterSelection;
   apiKey: string | null;
+  backupFrequency: number;
+  lastAutoBackup: string | null;
   
   // Actions
   addIncome: (income: Omit<FinanceEntry, 'id' | 'vatAmount'>) => void;
@@ -23,7 +25,10 @@ interface FinanceState {
   setYearSelection: (yearSelection: YearSelection) => void;
   setQuarterSelection: (quarterSelection: QuarterSelection) => void;
   setApiKey: (apiKey: string) => void;
+  setBackupFrequency: (frequency: number) => void;
+  setLastAutoBackup: (date: string) => void;
   resetAllData: () => void;
+  restoreFromBackup: (data: { incomes: FinanceEntry[]; expenses: FinanceEntry[] }) => void;
 }
 
 export const useFinanceStore = create<FinanceState>()(
@@ -43,6 +48,8 @@ export const useFinanceStore = create<FinanceState>()(
         quarter: 5, // Default to "Heel jaar" (whole year)
       },
       apiKey: null,
+      backupFrequency: 1, // Default to daily backups
+      lastAutoBackup: null,
       
       addIncome: (income) => {
         const vatAmount = calculateVatAmount(income.amount, income.vatRate);
@@ -128,10 +135,25 @@ export const useFinanceStore = create<FinanceState>()(
         set({ apiKey });
       },
       
+      setBackupFrequency: (frequency) => {
+        set({ backupFrequency: frequency });
+      },
+      
+      setLastAutoBackup: (date) => {
+        set({ lastAutoBackup: date });
+      },
+      
       resetAllData: () => {
         set({
           incomes: [],
           expenses: [],
+        });
+      },
+      
+      restoreFromBackup: (data) => {
+        set({
+          incomes: data.incomes,
+          expenses: data.expenses,
         });
       },
     }),

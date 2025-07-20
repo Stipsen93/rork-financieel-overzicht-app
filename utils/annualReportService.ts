@@ -1,6 +1,6 @@
 import { FinanceEntry } from '@/types/finance';
 import { formatCurrency } from '@/utils/finance';
-import { callGeminiAPI } from './apiService';
+import { callChatGPTAPI } from './apiService';
 
 interface CategorizedExpenses {
   tanken: FinanceEntry[];
@@ -77,7 +77,7 @@ Retourneer alleen het JSON object, geen andere tekst.`;
       },
     ];
 
-    const data = await callGeminiAPI(messages);
+    const data = await callChatGPTAPI(messages, apiKey);
     
     if (data.completion) {
       try {
@@ -265,7 +265,7 @@ Maak hiervan een nette, professionele jaarrekening in tekst formaat. Gebruik een
       },
     ];
     
-    const data = await callGeminiAPI(messages);
+    const data = await callChatGPTAPI(messages, apiKey);
     
     if (data.completion) {
       return data.completion.trim();

@@ -25,7 +25,7 @@ export default function ProfileScreen() {
     <ScrollView style={styles.container}>
       <Stack.Screen
         options={{
-          title: 'Profiel',
+          title: 'API Sleutel',
           headerStyle: {
             backgroundColor: Colors.secondary,
           },

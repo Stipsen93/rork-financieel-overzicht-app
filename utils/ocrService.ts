@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
-import { callGeminiAPI } from './apiService';
+import { callChatGPTAPI } from './apiService';
 
 interface ReceiptData {
   name?: string;
@@ -86,7 +86,7 @@ Retourneer alleen het JSON object, geen andere tekst.`,
       },
     ];
     
-    const data = await callGeminiAPI(messages);
+    const data = await callChatGPTAPI(messages, apiKey);
     
     if (data.completion) {
       try {

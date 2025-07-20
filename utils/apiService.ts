@@ -11,24 +11,30 @@ interface APIResponse {
   completion: string;
 }
 
-export const callGeminiAPI = async (
-  messages: CoreMessage[]
+export const callChatGPTAPI = async (
+  messages: CoreMessage[],
+  apiKey: string
 ): Promise<APIResponse> => {
-  const endpoint = 'https://toolkit.rork.com/text/llm/';
-    
-  const response = await fetch(endpoint, {
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({ messages }),
+    body: JSON.stringify({
+      model: 'gpt-4o',
+      messages: messages,
+      max_tokens: 2000,
+      temperature: 0.1,
+    }),
   });
   
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('API Error:', response.status, errorText);
-    throw new Error(`API fout: ${response.status}. Controleer je ChatGPT API sleutel.`);
+    console.error('ChatGPT API Error:', response.status, errorText);
+    throw new Error(`ChatGPT API fout: ${response.status}. Controleer je API sleutel.`);
   }
   
-  return await response.json();
+  const data = await response.json();
+  return { completion: data.choices[0].message.content };
 };

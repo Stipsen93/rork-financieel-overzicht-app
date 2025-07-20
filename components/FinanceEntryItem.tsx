@@ -72,6 +72,13 @@ export default function FinanceEntryItem({ entry, onDelete }: FinanceEntryItemPr
           <View style={styles.header}>
             <View style={styles.nameContainer}>
               <Text style={styles.name}>{entry.name}</Text>
+            </View>
+            <Text style={styles.date}>{formatDate(entry.date)}</Text>
+          </View>
+          
+          <View style={styles.amounts}>
+            <View style={styles.amountContainer}>
+              <Text style={styles.amount}>{formatCurrency(entry.amount)}</Text>
               {entry.imageUri && (
                 <TouchableOpacity
                   style={styles.attachmentIcon}
@@ -81,11 +88,6 @@ export default function FinanceEntryItem({ entry, onDelete }: FinanceEntryItemPr
                 </TouchableOpacity>
               )}
             </View>
-            <Text style={styles.date}>{formatDate(entry.date)}</Text>
-          </View>
-          
-          <View style={styles.amounts}>
-            <Text style={styles.amount}>{formatCurrency(entry.amount)}</Text>
             <Text style={styles.vatAmount}>
               BTW: {formatCurrency(entry.vatAmount)}
             </Text>
@@ -177,8 +179,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   nameContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
     flex: 1,
     marginRight: 8,
   },
@@ -186,11 +186,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     color: Colors.text,
-    flex: 1,
-  },
-  attachmentIcon: {
-    marginLeft: 8,
-    padding: 4,
   },
   date: {
     fontSize: 14,
@@ -201,10 +196,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  amountContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   amount: {
     fontSize: 18,
     fontWeight: 'bold',
     color: Colors.text,
+  },
+  attachmentIcon: {
+    marginLeft: 8,
+    padding: 4,
   },
   vatAmount: {
     fontSize: 14,

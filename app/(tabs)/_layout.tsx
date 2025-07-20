@@ -48,7 +48,7 @@ export default function TabLayout() {
                 marginLeft: 8,
                 fontWeight: '500'
               }}>
-                Versie 1.6
+                Versie 1.7
               </Text>
             </View>
           ),
@@ -91,6 +91,12 @@ export default function TabLayout() {
         />
         <Tabs.Screen
           name="bank-statement"
+          options={{
+            href: null, // Hide from tab bar
+          }}
+        />
+        <Tabs.Screen
+          name="backup"
           options={{
             href: null, // Hide from tab bar
           }}

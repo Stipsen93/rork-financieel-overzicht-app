@@ -8,6 +8,7 @@ import { Alert } from 'react-native';
 interface FinanceState {
   incomes: FinanceEntry[];
   expenses: FinanceEntry[];
+  startingCapital: number;
   dateSelection: DateSelection;
   yearSelection: YearSelection;
   quarterSelection: QuarterSelection;
@@ -28,8 +29,9 @@ interface FinanceState {
   setApiKey: (apiKey: string) => void;
   setBackupFrequency: (frequency: number) => void;
   setLastAutoBackup: (date: string) => void;
+  setStartingCapital: (amount: number) => void;
   resetAllData: () => void;
-  restoreFromBackup: (data: { incomes: FinanceEntry[]; expenses: FinanceEntry[] }) => void;
+  restoreFromBackup: (data: { incomes: FinanceEntry[]; expenses: FinanceEntry[]; startingCapital?: number }) => void;
 }
 
 const isSameDay = (date1: string, date2: string): boolean => {
@@ -86,6 +88,7 @@ export const useFinanceStore = create<FinanceState>()(
     (set, get) => ({
       incomes: [],
       expenses: [],
+      startingCapital: 0,
       dateSelection: {
         year: new Date().getFullYear(),
         month: new Date().getMonth() + 1,
@@ -307,10 +310,15 @@ export const useFinanceStore = create<FinanceState>()(
         set({ lastAutoBackup: date });
       },
       
+      setStartingCapital: (amount) => {
+        set({ startingCapital: amount });
+      },
+      
       resetAllData: () => {
         set({
           incomes: [],
           expenses: [],
+          startingCapital: 0,
         });
       },
       
@@ -318,6 +326,7 @@ export const useFinanceStore = create<FinanceState>()(
         set({
           incomes: data.incomes,
           expenses: data.expenses,
+          startingCapital: data.startingCapital || 0,
         });
       },
     }),

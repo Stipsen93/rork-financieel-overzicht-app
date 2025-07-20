@@ -10,7 +10,7 @@ import { calculateMonthlySummary, filterEntriesByYear, filterEntriesByQuarter, f
 
 export default function OverviewScreen() {
   const router = useRouter();
-  const { incomes, expenses, yearSelection, quarterSelection, setYearSelection, setQuarterSelection } = useFinanceStore();
+  const { incomes, expenses, yearSelection, quarterSelection, setYearSelection, setQuarterSelection, startingCapital } = useFinanceStore();
   
   const filteredIncomes = useMemo(
     () => filterEntriesByYear(incomes, yearSelection.year),
@@ -52,6 +52,12 @@ export default function OverviewScreen() {
     [incomeExVat, summary.totalExpense]
   );
   
+  // Calculate total balance including starting capital
+  const totalBalance = useMemo(
+    () => startingCapital + summary.netAmount,
+    [startingCapital, summary.netAmount]
+  );
+  
   const handleYearChange = (year: number) => {
     setYearSelection({ year });
   };
@@ -69,6 +75,29 @@ export default function OverviewScreen() {
           onSelect={handleYearChange}
         />
       </View>
+      
+      {startingCapital > 0 && (
+        <View style={styles.startingCapitalSection}>
+          <View style={styles.startingCapitalCard}>
+            <Text style={styles.startingCapitalTitle}>Startkapitaal</Text>
+            <Text style={[styles.startingCapitalAmount, { color: Colors.primary }]}>
+              {formatCurrency(startingCapital)}
+            </Text>
+          </View>
+          
+          <View style={styles.startingCapitalCard}>
+            <Text style={styles.startingCapitalTitle}>Totaal Saldo</Text>
+            <Text
+              style={[
+                styles.startingCapitalAmount,
+                { color: totalBalance >= 0 ? Colors.success : Colors.danger },
+              ]}
+            >
+              {formatCurrency(totalBalance)}
+            </Text>
+          </View>
+        </View>
+      )}
       
       <View style={styles.mainContainer}>
         <View style={styles.columnsContainer}>
@@ -217,6 +246,37 @@ const styles = StyleSheet.create({
     color: Colors.text,
     textAlign: 'center',
     marginBottom: 10,
+  },
+  startingCapitalSection: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginTop: 16,
+  },
+  startingCapitalCard: {
+    flex: 1,
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    padding: 16,
+    marginHorizontal: 4,
+    alignItems: 'center',
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  startingCapitalTitle: {
+    fontSize: 14,
+    color: Colors.lightText,
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  startingCapitalAmount: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
   mainContainer: {
     marginTop: 16,

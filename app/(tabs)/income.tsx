@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import { DollarSign } from 'lucide-react-native';
 import { useFinanceStore } from '@/store/financeStore';
 import Colors from '@/constants/colors';
 import MonthYearPicker from '@/components/MonthYearPicker';
@@ -8,12 +9,14 @@ import FinanceEntryItem from '@/components/FinanceEntryItem';
 import FloatingActionButton from '@/components/FloatingActionButton';
 import EntryForm from '@/components/EntryForm';
 import SearchBar from '@/components/SearchBar';
-import { filterEntriesByMonth } from '@/utils/finance';
+import StartingCapitalForm from '@/components/StartingCapitalForm';
+import { filterEntriesByMonth, formatCurrency } from '@/utils/finance';
 
 export default function IncomeScreen() {
   const [showForm, setShowForm] = useState(false);
+  const [showStartingCapitalForm, setShowStartingCapitalForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const { incomes, dateSelection, setDateSelection, removeIncome } = useFinanceStore();
+  const { incomes, dateSelection, setDateSelection, removeIncome, startingCapital } = useFinanceStore();
   
   const filteredIncomes = useMemo(
     () => filterEntriesByMonth(incomes, dateSelection.year, dateSelection.month)
@@ -54,6 +57,19 @@ export default function IncomeScreen() {
           month={dateSelection.month}
           onSelect={handleDateChange}
         />
+        
+        <TouchableOpacity
+          style={styles.startingCapitalButton}
+          onPress={() => setShowStartingCapitalForm(true)}
+        >
+          <DollarSign size={20} color={Colors.text} />
+          <Text style={styles.startingCapitalButtonText}>Start Kapitaal</Text>
+          {startingCapital > 0 && (
+            <Text style={styles.startingCapitalAmount}>
+              {formatCurrency(startingCapital)}
+            </Text>
+          )}
+        </TouchableOpacity>
       </View>
       
       <View style={styles.summaryContainer}>
@@ -101,6 +117,11 @@ export default function IncomeScreen() {
         visible={showForm}
         onClose={() => setShowForm(false)}
       />
+      
+      <StartingCapitalForm
+        visible={showStartingCapitalForm}
+        onClose={() => setShowStartingCapitalForm(false)}
+      />
     </View>
   );
 }
@@ -115,6 +136,31 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.secondary,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
+  },
+  startingCapitalButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary,
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 12,
+  },
+  startingCapitalButtonText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: Colors.text,
+    marginLeft: 8,
+  },
+  startingCapitalAmount: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: Colors.success,
+    marginLeft: 8,
+    backgroundColor: Colors.background,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
   summaryContainer: {
     marginTop: 16,

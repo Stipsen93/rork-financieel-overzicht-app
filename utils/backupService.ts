@@ -5,6 +5,7 @@ import { useFinanceStore } from '@/store/financeStore';
 interface BackupData {
   incomes: FinanceEntry[];
   expenses: FinanceEntry[];
+  startingCapital: number;
   timestamp: string;
   version: string;
 }
@@ -19,8 +20,9 @@ export const createBackup = async (): Promise<void> => {
     const backupData: BackupData = {
       incomes: state.incomes,
       expenses: state.expenses,
+      startingCapital: state.startingCapital,
       timestamp: new Date().toISOString(),
-      version: '1.7',
+      version: '1.10',
     };
     
     await AsyncStorage.setItem(BACKUP_KEY, JSON.stringify(backupData));
@@ -53,6 +55,7 @@ export const restoreBackup = async (): Promise<boolean> => {
     state.restoreFromBackup({
       incomes: backupData.incomes,
       expenses: backupData.expenses,
+      startingCapital: backupData.startingCapital || 0,
     });
     
     console.log('Backup restored successfully');

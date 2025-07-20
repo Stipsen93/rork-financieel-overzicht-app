@@ -186,7 +186,7 @@ const calculateTotals = (incomes: FinanceEntry[], categorizedExpenses: Categoriz
 
   return {
     totalGrossIncome,
-    nettoInkomen, // This is the adjusted income after VAT
+    nettoInkomen,
     totaleTanken,
     totaleBankkosten,
     totaleAutogarage,
@@ -212,52 +212,58 @@ export const generateAnnualReport = async (
     const categorizedExpenses = await categorizeExpensesWithAI(expenses, apiKey);
     const totals = calculateTotals(incomes, categorizedExpenses);
     
-    const expenseDetails = [
-      `Tanken: ${formatCurrency(totals.totaleTanken)}`,
-      ...categorizedExpenses.tanken.map(expense => `- ${expense.name}: ${formatCurrency(expense.amount)} (${new Date(expense.date).toLocaleDateString('nl-NL')})`),
-      '',
-      `Bankkosten: ${formatCurrency(totals.totaleBankkosten)}`,
-      ...categorizedExpenses.bankkosten.map(expense => `- ${expense.name}: ${formatCurrency(expense.amount)} (${new Date(expense.date).toLocaleDateString('nl-NL')})`),
-      '',
-      `Autogarage kosten: ${formatCurrency(totals.totaleAutogarage)}`,
-      ...categorizedExpenses.autogarage.map(expense => `- ${expense.name}: ${formatCurrency(expense.amount)} (${new Date(expense.date).toLocaleDateString('nl-NL')})`),
-      '',
-      `Verzekeringen: ${formatCurrency(totals.totaleVerzekeringen)}`,
-      ...categorizedExpenses.verzekeringen.map(expense => `- ${expense.name}: ${formatCurrency(expense.amount)} (${new Date(expense.date).toLocaleDateString('nl-NL')})`),
-      '',
-      `Telefoonkosten: ${formatCurrency(totals.totaleTelefoon)}`,
-      ...categorizedExpenses.telefoon.map(expense => `- ${expense.name}: ${formatCurrency(expense.amount)} (${new Date(expense.date).toLocaleDateString('nl-NL')})`),
-      '',
-      `Overige kosten: ${formatCurrency(totals.totaleOverige)}`,
-      ...categorizedExpenses.overige.map(expense => `- ${expense.name}: ${formatCurrency(expense.amount)} (${new Date(expense.date).toLocaleDateString('nl-NL')})`),
-    ].join('\n');
-    
-    const prompt = `Maak een professionele jaarrekening in tekst formaat voor het jaar ${year}. Gebruik de volgende gegevens:
+    const prompt = `Maak een professionele jaarrekening in tekst formaat voor het jaar ${year} met EXACT deze layout en structuur:
 
-INKOMSTEN (na aftrek BTW):
-Bruto Inkomsten: ${formatCurrency(totals.totalGrossIncome)}
-Af: BTW te betalen: ${formatCurrency(totals.btwTeBetalen)}
-Netto Inkomsten: ${formatCurrency(totals.nettoInkomen)}
-(Gebaseerd op ${incomes.length} inkomsten posten)
+JAARREKENING ${year}
+=====================================
 
-KOSTEN:
-${expenseDetails}
+BRUTOWINST
+---------
+Omzet                           ${formatCurrency(totals.totalGrossIncome)}
+Af: BTW te betalen             ${formatCurrency(totals.btwTeBetalen)}
+                               _______________
+Netto omzet                    ${formatCurrency(totals.nettoInkomen)}
 
-Totale Kosten: ${formatCurrency(totals.totaleKosten)}
+KOSTEN
+------
+Tanken                         ${formatCurrency(totals.totaleTanken)}
+Autogarage kosten              ${formatCurrency(totals.totaleAutogarage)}
+Bankkosten                     ${formatCurrency(totals.totaleBankkosten)}
+Verzekeringen                  ${formatCurrency(totals.totaleVerzekeringen)}
+Telefoonkosten                 ${formatCurrency(totals.totaleTelefoon)}
+Overige kosten                 ${formatCurrency(totals.totaleOverige)}
+                               _______________
+Totale kosten                  ${formatCurrency(totals.totaleKosten)}
 
-NETTO RESULTAAT: ${formatCurrency(totals.nettoResultaat)}
+NETTO RESULTAAT
+---------------
+Netto omzet                    ${formatCurrency(totals.nettoInkomen)}
+Af: Totale kosten             ${formatCurrency(totals.totaleKosten)}
+                               _______________
+Netto resultaat                ${formatCurrency(totals.nettoResultaat)}
 
-BTW OVERZICHT:
-- BTW te betalen: ${formatCurrency(totals.btwTeBetalen)}
-- BTW te vorderen: ${formatCurrency(totals.btwTeVorderen)}
-- Netto BTW: ${formatCurrency(totals.nettoBtw)}
+BTW OVERZICHT
+-------------
+BTW te betalen                 ${formatCurrency(totals.btwTeBetalen)}
+BTW te vorderen               ${formatCurrency(totals.btwTeVorderen)}
+                               _______________
+Netto BTW verschuldigd         ${formatCurrency(totals.nettoBtw)}
 
-Maak hiervan een nette, professionele jaarrekening in tekst formaat. Gebruik een duidelijke structuur met kopjes en zorg voor een professionele uitstraling. Begin met de netto inkomsten (${formatCurrency(totals.nettoInkomen)}) als uitgangspunt voor de berekening. Retourneer alleen de geformatteerde tekst, geen andere uitleg.`;
+=====================================
+
+Gebruik EXACT deze layout met:
+- Dezelfde kopjes en onderverdeling
+- Dezelfde lijnen (===== en _____)
+- Dezelfde uitlijning
+- Alleen de categorietotalen, GEEN individuele posten
+- Professionele formatting
+
+Retourneer alleen de geformatteerde jaarrekening tekst, geen andere uitleg.`;
 
     const messages: CoreMessage[] = [
       {
         role: 'system',
-        content: 'Je bent een professionele boekhouder die jaarrekeningen maakt. Maak een nette tekst-gebaseerde jaarrekening op basis van de gegeven financiële gegevens. Gebruik duidelijke formatting met lijnen, spaties en kopjes voor een professionele uitstraling.',
+        content: 'Je bent een professionele boekhouder die jaarrekeningen maakt. Maak een nette tekst-gebaseerde jaarrekening op basis van de gegeven financiële gegevens. Gebruik EXACT de opgegeven layout en formatting.',
       },
       {
         role: 'user',

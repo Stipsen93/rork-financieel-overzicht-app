@@ -86,6 +86,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="preferences"
           options={{
+            title: 'Voorkeuren',
             href: null, // Hide from tab bar
           }}
         />

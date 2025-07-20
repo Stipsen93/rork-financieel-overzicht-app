@@ -286,16 +286,11 @@ export default function BackupScreen() {
       <View style={styles.infoContainer}>
         <Text style={styles.infoTitle}>Wat wordt er opgeslagen?</Text>
         <Text style={styles.infoText}>
-          • Alle inkomen en uitgaven posten{'
-'}
-          • Bijbehorende foto's en notities{'
-'}
-          • BTW berekeningen{'
-'}
-          • Datum en tijd informatie{'
-'}
-          {'
-'}
+          • Alle inkomen en uitgaven posten{'\n'}
+          • Bijbehorende foto's en notities{'\n'}
+          • BTW berekeningen{'\n'}
+          • Datum en tijd informatie{'\n'}
+          {'\n'}
           <Text style={styles.infoNote}>
             Back-ups worden lokaal op je apparaat opgeslagen en bevatten geen API sleutels of andere gevoelige instellingen.
           </Text>

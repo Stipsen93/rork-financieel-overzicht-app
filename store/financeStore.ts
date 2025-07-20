@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FinanceEntry, DateSelection, YearSelection, QuarterSelection } from '@/types/finance';
 import { calculateVatAmount } from '@/utils/finance';
+import { Alert } from 'react-native';
 
 interface FinanceState {
   incomes: FinanceEntry[];
@@ -31,9 +32,58 @@ interface FinanceState {
   restoreFromBackup: (data: { incomes: FinanceEntry[]; expenses: FinanceEntry[] }) => void;
 }
 
+const isSameDay = (date1: string, date2: string): boolean => {
+  const d1 = new Date(date1);
+  const d2 = new Date(date2);
+  return d1.getFullYear() === d2.getFullYear() &&
+         d1.getMonth() === d2.getMonth() &&
+         d1.getDate() === d2.getDate();
+};
+
+const findDuplicates = (
+  entries: FinanceEntry[],
+  newEntry: Omit<FinanceEntry, 'id' | 'vatAmount'>
+): FinanceEntry[] => {
+  return entries.filter(entry => 
+    entry.name.toLowerCase() === newEntry.name.toLowerCase() &&
+    entry.amount === newEntry.amount &&
+    isSameDay(entry.date, newEntry.date)
+  );
+};
+
+const showDuplicateAlert = (
+  duplicates: FinanceEntry[],
+  newEntryName: string,
+  onKeepBoth: () => void,
+  onRemoveDuplicate: (duplicateId: string) => void
+) => {
+  Alert.alert(
+    'Dubbele Post Gevonden',
+    `Er ${duplicates.length > 1 ? 'zijn' : 'is'} al ${duplicates.length} post${duplicates.length > 1 ? 'en' : ''} met dezelfde naam, bedrag en datum als "${newEntryName}". Wat wil je doen?`,
+    [
+      {
+        text: 'Beide Behouden',
+        onPress: onKeepBoth,
+      },
+      {
+        text: 'Oude Verwijderen',
+        style: 'destructive',
+        onPress: () => {
+          // If multiple duplicates, remove the first one
+          onRemoveDuplicate(duplicates[0].id);
+        },
+      },
+      {
+        text: 'Annuleren',
+        style: 'cancel',
+      },
+    ]
+  );
+};
+
 export const useFinanceStore = create<FinanceState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       incomes: [],
       expenses: [],
       dateSelection: {
@@ -52,59 +102,173 @@ export const useFinanceStore = create<FinanceState>()(
       lastAutoBackup: null,
       
       addIncome: (income) => {
-        const vatAmount = calculateVatAmount(income.amount, income.vatRate);
-        const newIncome: FinanceEntry = {
-          ...income,
-          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-          vatAmount,
-        };
+        const state = get();
+        const duplicates = findDuplicates(state.incomes, income);
         
-        set((state) => ({
-          incomes: [...state.incomes, newIncome],
-        }));
+        const addNewIncome = () => {
+          const vatAmount = calculateVatAmount(income.amount, income.vatRate);
+          const newIncome: FinanceEntry = {
+            ...income,
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+            vatAmount,
+          };
+          
+          set((state) => ({
+            incomes: [...state.incomes, newIncome],
+          }));
+        };
+
+        if (duplicates.length > 0) {
+          showDuplicateAlert(
+            duplicates,
+            income.name,
+            addNewIncome,
+            (duplicateId) => {
+              // Remove the duplicate first, then add the new one
+              set((state) => ({
+                incomes: state.incomes.filter(inc => inc.id !== duplicateId),
+              }));
+              addNewIncome();
+            }
+          );
+        } else {
+          addNewIncome();
+        }
       },
       
       addExpense: (expense) => {
-        const vatAmount = calculateVatAmount(expense.amount, expense.vatRate);
-        const newExpense: FinanceEntry = {
-          ...expense,
-          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-          vatAmount,
-        };
+        const state = get();
+        const duplicates = findDuplicates(state.expenses, expense);
         
-        set((state) => ({
-          expenses: [...state.expenses, newExpense],
-        }));
+        const addNewExpense = () => {
+          const vatAmount = calculateVatAmount(expense.amount, expense.vatRate);
+          const newExpense: FinanceEntry = {
+            ...expense,
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+            vatAmount,
+          };
+          
+          set((state) => ({
+            expenses: [...state.expenses, newExpense],
+          }));
+        };
+
+        if (duplicates.length > 0) {
+          showDuplicateAlert(
+            duplicates,
+            expense.name,
+            addNewExpense,
+            (duplicateId) => {
+              // Remove the duplicate first, then add the new one
+              set((state) => ({
+                expenses: state.expenses.filter(exp => exp.id !== duplicateId),
+              }));
+              addNewExpense();
+            }
+          );
+        } else {
+          addNewExpense();
+        }
       },
       
       addMultipleIncomes: (incomes) => {
-        const newIncomes: FinanceEntry[] = incomes.map((income, index) => {
+        const state = get();
+        const newIncomes: FinanceEntry[] = [];
+        const duplicateChecks: Array<{
+          newEntry: FinanceEntry;
+          duplicates: FinanceEntry[];
+        }> = [];
+
+        incomes.forEach((income, index) => {
           const vatAmount = calculateVatAmount(income.amount, income.vatRate);
-          return {
+          const newIncome: FinanceEntry = {
             ...income,
             id: (Date.now() + index).toString() + Math.random().toString(36).substr(2, 9),
             vatAmount,
           };
+
+          const duplicates = findDuplicates(state.incomes, income);
+          if (duplicates.length > 0) {
+            duplicateChecks.push({ newEntry: newIncome, duplicates });
+          } else {
+            newIncomes.push(newIncome);
+          }
         });
-        
-        set((state) => ({
-          incomes: [...state.incomes, ...newIncomes],
-        }));
+
+        // Add non-duplicate entries immediately
+        if (newIncomes.length > 0) {
+          set((state) => ({
+            incomes: [...state.incomes, ...newIncomes],
+          }));
+        }
+
+        // Handle duplicates one by one
+        duplicateChecks.forEach(({ newEntry, duplicates }) => {
+          showDuplicateAlert(
+            duplicates,
+            newEntry.name,
+            () => {
+              set((state) => ({
+                incomes: [...state.incomes, newEntry],
+              }));
+            },
+            (duplicateId) => {
+              set((state) => ({
+                incomes: [...state.incomes.filter(inc => inc.id !== duplicateId), newEntry],
+              }));
+            }
+          );
+        });
       },
       
       addMultipleExpenses: (expenses) => {
-        const newExpenses: FinanceEntry[] = expenses.map((expense, index) => {
+        const state = get();
+        const newExpenses: FinanceEntry[] = [];
+        const duplicateChecks: Array<{
+          newEntry: FinanceEntry;
+          duplicates: FinanceEntry[];
+        }> = [];
+
+        expenses.forEach((expense, index) => {
           const vatAmount = calculateVatAmount(expense.amount, expense.vatRate);
-          return {
+          const newExpense: FinanceEntry = {
             ...expense,
             id: (Date.now() + index).toString() + Math.random().toString(36).substr(2, 9),
             vatAmount,
           };
+
+          const duplicates = findDuplicates(state.expenses, expense);
+          if (duplicates.length > 0) {
+            duplicateChecks.push({ newEntry: newExpense, duplicates });
+          } else {
+            newExpenses.push(newExpense);
+          }
         });
-        
-        set((state) => ({
-          expenses: [...state.expenses, ...newExpenses],
-        }));
+
+        // Add non-duplicate entries immediately
+        if (newExpenses.length > 0) {
+          set((state) => ({
+            expenses: [...state.expenses, ...newExpenses],
+          }));
+        }
+
+        // Handle duplicates one by one
+        duplicateChecks.forEach(({ newEntry, duplicates }) => {
+          showDuplicateAlert(
+            duplicates,
+            newEntry.name,
+            () => {
+              set((state) => ({
+                expenses: [...state.expenses, newEntry],
+              }));
+            },
+            (duplicateId) => {
+              set((state) => ({
+                expenses: [...state.expenses.filter(exp => exp.id !== duplicateId), newEntry],
+              }));
+            }
+          );
+        });
       },
       
       removeIncome: (id) => {

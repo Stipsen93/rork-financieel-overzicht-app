@@ -16,7 +16,14 @@ export default function IncomeScreen() {
   const [showForm, setShowForm] = useState(false);
   const [showStartingCapitalForm, setShowStartingCapitalForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const { incomes, dateSelection, setDateSelection, removeIncome, startingCapital } = useFinanceStore();
+  const { 
+    incomes, 
+    dateSelection, 
+    setDateSelection, 
+    removeIncome, 
+    startingCapital, 
+    showStartingCapital 
+  } = useFinanceStore();
   
   const filteredIncomes = useMemo(
     () => filterEntriesByMonth(incomes, dateSelection.year, dateSelection.month)
@@ -58,18 +65,20 @@ export default function IncomeScreen() {
           onSelect={handleDateChange}
         />
         
-        <TouchableOpacity
-          style={styles.startingCapitalButton}
-          onPress={() => setShowStartingCapitalForm(true)}
-        >
-          <DollarSign size={20} color={Colors.text} />
-          <Text style={styles.startingCapitalButtonText}>Start Kapitaal</Text>
-          {startingCapital > 0 && (
-            <Text style={styles.startingCapitalAmount}>
-              {formatCurrency(startingCapital)}
-            </Text>
-          )}
-        </TouchableOpacity>
+        {showStartingCapital && (
+          <TouchableOpacity
+            style={styles.startingCapitalButton}
+            onPress={() => setShowStartingCapitalForm(true)}
+          >
+            <DollarSign size={20} color={Colors.text} />
+            <Text style={styles.startingCapitalButtonText}>Start Kapitaal</Text>
+            {startingCapital > 0 && (
+              <Text style={styles.startingCapitalAmount}>
+                {formatCurrency(startingCapital)}
+              </Text>
+            )}
+          </TouchableOpacity>
+        )}
       </View>
       
       <View style={styles.summaryContainer}>

@@ -9,7 +9,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { X, Key, FileText, RotateCcw, Save } from 'lucide-react-native';
+import { X, Key, FileText, RotateCcw, Save, Settings } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 
 interface SlideMenuProps {
@@ -74,6 +74,14 @@ export default function SlideMenu({ visible, onClose }: SlideMenuProps) {
           </View>
           
           <View style={styles.menuItems}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => handleMenuItemPress('/(tabs)/preferences')}
+            >
+              <Settings size={20} color={Colors.text} />
+              <Text style={styles.menuItemText}>Voorkeuren</Text>
+            </TouchableOpacity>
+            
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => handleMenuItemPress('/(tabs)/profile')}

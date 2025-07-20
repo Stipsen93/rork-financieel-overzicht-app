@@ -48,7 +48,7 @@ export default function TabLayout() {
                 marginLeft: 8,
                 fontWeight: '500'
               }}>
-                Versie 1.10
+                Versie 1.11
               </Text>
             </View>
           ),
@@ -81,6 +81,12 @@ export default function TabLayout() {
           options={{
             title: 'Uitgaven',
             tabBarIcon: ({ color }) => <TrendingDown size={24} color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="preferences"
+          options={{
+            href: null, // Hide from tab bar
           }}
         />
         <Tabs.Screen

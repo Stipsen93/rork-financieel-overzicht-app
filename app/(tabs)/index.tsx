@@ -10,7 +10,16 @@ import { calculateMonthlySummary, filterEntriesByYear, filterEntriesByQuarter, f
 
 export default function OverviewScreen() {
   const router = useRouter();
-  const { incomes, expenses, yearSelection, quarterSelection, setYearSelection, setQuarterSelection, startingCapital } = useFinanceStore();
+  const { 
+    incomes, 
+    expenses, 
+    yearSelection, 
+    quarterSelection, 
+    setYearSelection, 
+    setQuarterSelection, 
+    startingCapital,
+    incomeDisplayMode 
+  } = useFinanceStore();
   
   const filteredIncomes = useMemo(
     () => filterEntriesByYear(incomes, yearSelection.year),
@@ -66,6 +75,10 @@ export default function OverviewScreen() {
     setQuarterSelection({ year, quarter });
   };
   
+  // Determine which columns to show based on preference
+  const showInclVat = incomeDisplayMode === 'both' || incomeDisplayMode === 'inclVat';
+  const showExVat = incomeDisplayMode === 'both' || incomeDisplayMode === 'exVat';
+  
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
@@ -101,65 +114,69 @@ export default function OverviewScreen() {
       
       <View style={styles.mainContainer}>
         <View style={styles.columnsContainer}>
-          <View style={styles.column}>
-            <View style={styles.columnCard}>
-              <View style={styles.cardItem}>
-                <Text style={styles.cardTitle}>Totaal Inkomen incl BTW</Text>
-                <Text style={[styles.cardAmount, { color: Colors.success }]}>
-                  {formatCurrency(summary.totalIncome)}
-                </Text>
-              </View>
-              <View style={styles.cardDivider} />
-              <View style={styles.cardItem}>
-                <Text style={styles.cardTitle}>Totaal Uitgaven</Text>
-                <Text style={[styles.cardAmount, { color: Colors.danger }]}>
-                  {formatCurrency(summary.totalExpense)}
-                </Text>
-              </View>
-              <View style={styles.cardDivider} />
-              <View style={styles.cardItem}>
-                <Text style={styles.cardTitle}>Netto Saldo incl BTW</Text>
-                <Text
-                  style={[
-                    styles.cardAmount,
-                    { color: summary.netAmount >= 0 ? Colors.success : Colors.danger },
-                  ]}
-                >
-                  {formatCurrency(summary.netAmount)}
-                </Text>
+          {showInclVat && (
+            <View style={[styles.column, !showExVat && styles.singleColumn]}>
+              <View style={styles.columnCard}>
+                <View style={styles.cardItem}>
+                  <Text style={styles.cardTitle}>Totaal Inkomen incl BTW</Text>
+                  <Text style={[styles.cardAmount, { color: Colors.success }]}>
+                    {formatCurrency(summary.totalIncome)}
+                  </Text>
+                </View>
+                <View style={styles.cardDivider} />
+                <View style={styles.cardItem}>
+                  <Text style={styles.cardTitle}>Totaal Uitgaven</Text>
+                  <Text style={[styles.cardAmount, { color: Colors.danger }]}>
+                    {formatCurrency(summary.totalExpense)}
+                  </Text>
+                </View>
+                <View style={styles.cardDivider} />
+                <View style={styles.cardItem}>
+                  <Text style={styles.cardTitle}>Netto Saldo incl BTW</Text>
+                  <Text
+                    style={[
+                      styles.cardAmount,
+                      { color: summary.netAmount >= 0 ? Colors.success : Colors.danger },
+                    ]}
+                  >
+                    {formatCurrency(summary.netAmount)}
+                  </Text>
+                </View>
               </View>
             </View>
-          </View>
+          )}
           
-          <View style={styles.column}>
-            <View style={styles.columnCard}>
-              <View style={styles.cardItem}>
-                <Text style={styles.cardTitle}>Totaal Inkomen ex BTW</Text>
-                <Text style={[styles.cardAmount, { color: Colors.success }]}>
-                  {formatCurrency(incomeExVat)}
-                </Text>
-              </View>
-              <View style={styles.cardDivider} />
-              <View style={styles.cardItem}>
-                <Text style={styles.cardTitle}>Totaal Uitgaven</Text>
-                <Text style={[styles.cardAmount, { color: Colors.danger }]}>
-                  {formatCurrency(summary.totalExpense)}
-                </Text>
-              </View>
-              <View style={styles.cardDivider} />
-              <View style={styles.cardItem}>
-                <Text style={styles.cardTitle}>Netto Saldo ex BTW</Text>
-                <Text
-                  style={[
-                    styles.cardAmount,
-                    { color: netBalanceExVat >= 0 ? Colors.success : Colors.danger },
-                  ]}
-                >
-                  {formatCurrency(netBalanceExVat)}
-                </Text>
+          {showExVat && (
+            <View style={[styles.column, !showInclVat && styles.singleColumn]}>
+              <View style={styles.columnCard}>
+                <View style={styles.cardItem}>
+                  <Text style={styles.cardTitle}>Totaal Inkomen ex BTW</Text>
+                  <Text style={[styles.cardAmount, { color: Colors.success }]}>
+                    {formatCurrency(incomeExVat)}
+                  </Text>
+                </View>
+                <View style={styles.cardDivider} />
+                <View style={styles.cardItem}>
+                  <Text style={styles.cardTitle}>Totaal Uitgaven</Text>
+                  <Text style={[styles.cardAmount, { color: Colors.danger }]}>
+                    {formatCurrency(summary.totalExpense)}
+                  </Text>
+                </View>
+                <View style={styles.cardDivider} />
+                <View style={styles.cardItem}>
+                  <Text style={styles.cardTitle}>Netto Saldo ex BTW</Text>
+                  <Text
+                    style={[
+                      styles.cardAmount,
+                      { color: netBalanceExVat >= 0 ? Colors.success : Colors.danger },
+                    ]}
+                  >
+                    {formatCurrency(netBalanceExVat)}
+                  </Text>
+                </View>
               </View>
             </View>
-          </View>
+          )}
         </View>
         
         <View style={styles.vatSection}>
@@ -289,6 +306,9 @@ const styles = StyleSheet.create({
   column: {
     flex: 1,
     marginHorizontal: 4,
+  },
+  singleColumn: {
+    marginHorizontal: 16,
   },
   columnCard: {
     backgroundColor: Colors.card,

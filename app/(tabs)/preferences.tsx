@@ -8,12 +8,26 @@ import {
   Switch,
 } from 'react-native';
 import { Stack } from 'expo-router';
-import { Settings, DollarSign } from 'lucide-react-native';
+import { Settings, DollarSign, Eye } from 'lucide-react-native';
 import { useFinanceStore } from '@/store/financeStore';
 import Colors from '@/constants/colors';
 
 export default function PreferencesScreen() {
-  const { showStartingCapital, setShowStartingCapital } = useFinanceStore();
+  const { 
+    showStartingCapital, 
+    setShowStartingCapital,
+    incomeDisplayMode,
+    setIncomeDisplayMode 
+  } = useFinanceStore();
+  
+  const getDisplayModeText = (mode: 'both' | 'inclVat' | 'exVat') => {
+    switch (mode) {
+      case 'both': return 'Beide kolommen';
+      case 'inclVat': return 'Alleen incl BTW';
+      case 'exVat': return 'Alleen ex BTW';
+      default: return 'Beide kolommen';
+    }
+  };
   
   return (
     <ScrollView style={styles.container}>
@@ -57,6 +71,59 @@ export default function PreferencesScreen() {
             trackColor={{ false: Colors.border, true: Colors.primary }}
             thumbColor={showStartingCapital ? Colors.primaryDark : Colors.lightText}
           />
+        </View>
+      </View>
+      
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Overzicht Weergave</Text>
+        
+        <View style={styles.preferenceItem}>
+          <View style={styles.preferenceContent}>
+            <View style={styles.preferenceHeader}>
+              <Eye size={24} color={Colors.text} />
+              <Text style={styles.preferenceTitle}>Inkomen Kolommen</Text>
+            </View>
+            <Text style={styles.preferenceDescription}>
+              Kies welke inkomen kolommen je wilt zien op de overzicht pagina
+            </Text>
+            <Text style={styles.currentSelection}>
+              Huidige selectie: {getDisplayModeText(incomeDisplayMode)}
+            </Text>
+          </View>
+        </View>
+        
+        <View style={styles.displayModeButtons}>
+          {[
+            { key: 'both' as const, label: 'Beide kolommen', description: 'Toon zowel incl als ex BTW' },
+            { key: 'inclVat' as const, label: 'Alleen incl BTW', description: 'Toon alleen inkomen inclusief BTW' },
+            { key: 'exVat' as const, label: 'Alleen ex BTW', description: 'Toon alleen inkomen exclusief BTW' },
+          ].map((option) => (
+            <TouchableOpacity
+              key={option.key}
+              style={[
+                styles.displayModeButton,
+                incomeDisplayMode === option.key && styles.displayModeButtonActive,
+              ]}
+              onPress={() => setIncomeDisplayMode(option.key)}
+            >
+              <Text
+                style={[
+                  styles.displayModeButtonText,
+                  incomeDisplayMode === option.key && styles.displayModeButtonTextActive,
+                ]}
+              >
+                {option.label}
+              </Text>
+              <Text
+                style={[
+                  styles.displayModeButtonDescription,
+                  incomeDisplayMode === option.key && styles.displayModeButtonDescriptionActive,
+                ]}
+              >
+                {option.description}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
       </View>
       
@@ -123,6 +190,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 8,
+    marginBottom: 16,
   },
   preferenceContent: {
     flex: 1,
@@ -144,6 +212,46 @@ const styles = StyleSheet.create({
     color: Colors.lightText,
     lineHeight: 18,
     marginLeft: 32,
+  },
+  currentSelection: {
+    fontSize: 14,
+    color: Colors.primary,
+    fontWeight: '500',
+    marginLeft: 32,
+    marginTop: 4,
+  },
+  displayModeButtons: {
+    marginTop: 8,
+  },
+  displayModeButton: {
+    backgroundColor: Colors.background,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 8,
+  },
+  displayModeButtonActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primaryDark,
+  },
+  displayModeButtonText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  displayModeButtonTextActive: {
+    color: Colors.text,
+    fontWeight: 'bold',
+  },
+  displayModeButtonDescription: {
+    fontSize: 14,
+    color: Colors.lightText,
+  },
+  displayModeButtonDescriptionActive: {
+    color: Colors.text,
+    opacity: 0.8,
   },
   infoSection: {
     backgroundColor: Colors.card,

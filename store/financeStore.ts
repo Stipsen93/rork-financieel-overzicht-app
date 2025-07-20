@@ -16,6 +16,7 @@ interface FinanceState {
   backupFrequency: number;
   lastAutoBackup: string | null;
   showStartingCapital: boolean;
+  incomeDisplayMode: 'both' | 'inclVat' | 'exVat';
   
   // Actions
   addIncome: (income: Omit<FinanceEntry, 'id' | 'vatAmount'>) => void;
@@ -32,6 +33,7 @@ interface FinanceState {
   setLastAutoBackup: (date: string) => void;
   setStartingCapital: (amount: number) => void;
   setShowStartingCapital: (show: boolean) => void;
+  setIncomeDisplayMode: (mode: 'both' | 'inclVat' | 'exVat') => void;
   resetAllData: () => void;
   restoreFromBackup: (data: { incomes: FinanceEntry[]; expenses: FinanceEntry[]; startingCapital?: number }) => void;
 }
@@ -106,6 +108,7 @@ export const useFinanceStore = create<FinanceState>()(
       backupFrequency: 1, // Default to daily backups
       lastAutoBackup: null,
       showStartingCapital: true, // Default to showing starting capital
+      incomeDisplayMode: 'both', // Default to showing both columns
       
       addIncome: (income) => {
         const state = get();
@@ -319,6 +322,10 @@ export const useFinanceStore = create<FinanceState>()(
       
       setShowStartingCapital: (show) => {
         set({ showStartingCapital: show });
+      },
+      
+      setIncomeDisplayMode: (mode) => {
+        set({ incomeDisplayMode: mode });
       },
       
       resetAllData: () => {

@@ -272,7 +272,11 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
               </TouchableOpacity>
             </View>
             
-            <ScrollView style={styles.formContainer} showsVerticalScrollIndicator={false}>
+            <ScrollView 
+              style={styles.formContainer} 
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
               <Text style={styles.label}>Naam</Text>
               <View style={styles.nameInputContainer}>
                 <TextInput

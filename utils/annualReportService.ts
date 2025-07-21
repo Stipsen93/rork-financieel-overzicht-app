@@ -53,8 +53,7 @@ Categorieën:
 - overige: Alles wat niet in bovenstaande categorieën past
 
 Uitgaven lijst:
-${expenseNames.map(expense => `ID: ${expense.id} - Naam: ${expense.name}`).join('
-')}
+${expenseNames.map(expense => `ID: ${expense.id} - Naam: ${expense.name}`).join('\n')}
 
 Geef je antwoord terug als een JSON object met de volgende structuur:
 {

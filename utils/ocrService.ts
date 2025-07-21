@@ -27,12 +27,15 @@ export const processReceiptImages = async (
       throw new Error('Geen afbeeldingen om te verwerken');
     }
 
+    console.log(`Processing ${imageUris.length} receipt images...`);
+
     // Convert all images to base64
     const base64Images = await Promise.all(
-      imageUris.map(async (uri) => {
+      imageUris.map(async (uri, index) => {
+        console.log(`Converting image ${index + 1}/${imageUris.length} to base64...`);
         const base64 = await fileToBase64(uri);
         if (!base64) {
-          throw new Error(`Kon afbeelding niet converteren: ${uri}`);
+          throw new Error(`Kon afbeelding ${index + 1} niet converteren: ${uri}`);
         }
         return base64;
       })
@@ -86,7 +89,9 @@ Retourneer alleen het JSON object, geen andere tekst.`,
       },
     ];
     
+    console.log('Sending request to ChatGPT API...');
     const data = await callChatGPTAPI(messages, apiKey);
+    console.log('Received response from ChatGPT API');
     
     if (data.completion) {
       try {
@@ -96,17 +101,30 @@ Retourneer alleen het JSON object, geen andere tekst.`,
         
         if (jsonStart >= 0 && jsonEnd > jsonStart) {
           const jsonStr = data.completion.substring(jsonStart, jsonEnd);
-          return JSON.parse(jsonStr);
+          const result = JSON.parse(jsonStr);
+          console.log('Successfully parsed receipt data:', result);
+          return result;
         }
       } catch (parseError) {
         console.error('Error parsing JSON from AI response:', parseError);
+        throw new Error('Kon de bon informatie niet verwerken. Probeer het opnieuw met een duidelijkere foto.');
       }
     }
     
-    return null;
+    throw new Error('Geen bruikbare informatie gevonden in de bon. Controleer of de foto duidelijk leesbaar is.');
   } catch (error) {
     console.error('Error processing receipt images:', error);
-    throw error;
+    
+    // Re-throw with user-friendly message if it's our custom error
+    if ((error as Error).message.includes('te veel verzoeken') || 
+        (error as Error).message.includes('API sleutel') ||
+        (error as Error).message.includes('Toegang geweigerd') ||
+        (error as Error).message.includes('server is tijdelijk')) {
+      throw error;
+    }
+    
+    // Generic error for other cases
+    throw new Error('Kon bonnen niet verwerken. Controleer je internetverbinding en probeer het opnieuw. Als het probleem aanhoudt, wacht dan een paar minuten voordat je het opnieuw probeert.');
   }
 };
 

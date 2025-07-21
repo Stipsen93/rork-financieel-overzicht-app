@@ -35,6 +35,8 @@ const categorizeExpensesWithAI = async (
     };
   }
 
+  console.log(`Categorizing ${expenses.length} expenses with AI...`);
+
   const expenseNames = expenses.map(expense => ({
     id: expense.id,
     name: expense.name,
@@ -51,7 +53,8 @@ Categorieën:
 - overige: Alles wat niet in bovenstaande categorieën past
 
 Uitgaven lijst:
-${expenseNames.map(expense => `ID: ${expense.id} - Naam: ${expense.name}`).join('\n')}
+${expenseNames.map(expense => `ID: ${expense.id} - Naam: ${expense.name}`).join('
+')}
 
 Geef je antwoord terug als een JSON object met de volgende structuur:
 {
@@ -77,7 +80,9 @@ Retourneer alleen het JSON object, geen andere tekst.`;
       },
     ];
 
+    console.log('Sending categorization request to ChatGPT API...');
     const data = await callChatGPTAPI(messages, apiKey);
+    console.log('Received categorization response from ChatGPT API');
     
     if (data.completion) {
       try {
@@ -119,6 +124,7 @@ Retourneer alleen het JSON object, geen andere tekst.`;
             }
           });
 
+          console.log('Successfully categorized expenses');
           return result;
         }
       } catch (parseError) {
@@ -127,9 +133,15 @@ Retourneer alleen het JSON object, geen andere tekst.`;
     }
   } catch (error) {
     console.error('Error categorizing expenses with AI:', error);
+    
+    // If it's a rate limit error, re-throw it
+    if ((error as Error).message.includes('te veel verzoeken')) {
+      throw error;
+    }
   }
 
   // Fallback to simple categorization if AI fails
+  console.log('Falling back to simple categorization');
   return categorizeExpensesSimple(expenses);
 };
 
@@ -208,6 +220,8 @@ export const generateAnnualReport = async (
   apiKey: string
 ): Promise<string> => {
   try {
+    console.log(`Generating annual report for ${year}...`);
+    
     // Use AI to categorize expenses
     const categorizedExpenses = await categorizeExpensesWithAI(expenses, apiKey);
     const totals = calculateTotals(incomes, categorizedExpenses);
@@ -271,7 +285,9 @@ Retourneer alleen de geformatteerde jaarrekening tekst, geen andere uitleg.`;
       },
     ];
     
+    console.log('Sending annual report request to ChatGPT API...');
     const data = await callChatGPTAPI(messages, apiKey);
+    console.log('Received annual report response from ChatGPT API');
     
     if (data.completion) {
       return data.completion.trim();
@@ -280,6 +296,15 @@ Retourneer alleen de geformatteerde jaarrekening tekst, geen andere uitleg.`;
     throw new Error('Geen rapport data ontvangen van AI');
   } catch (error) {
     console.error('Error generating annual report:', error);
-    throw error;
+    
+    // Re-throw with user-friendly message if it's our custom error
+    if ((error as Error).message.includes('te veel verzoeken') || 
+        (error as Error).message.includes('API sleutel') ||
+        (error as Error).message.includes('Toegang geweigerd') ||
+        (error as Error).message.includes('server is tijdelijk')) {
+      throw error;
+    }
+    
+    throw new Error('Kon jaarrekening niet genereren. Controleer je internetverbinding en probeer het opnieuw. Als het probleem aanhoudt, wacht dan een paar minuten voordat je het opnieuw probeert.');
   }
 };

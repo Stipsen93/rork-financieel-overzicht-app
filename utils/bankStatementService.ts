@@ -33,16 +33,19 @@ export const processBankStatements = async (
       throw new Error('Geen bestanden om te verwerken');
     }
 
+    console.log(`Processing ${files.length} bank statement files...`);
+
     // Separate images and PDFs
     const imageFiles = files.filter(f => f.type === 'image');
     const pdfFiles = files.filter(f => f.type === 'pdf');
 
     // Convert image files to base64
     const base64Images = await Promise.all(
-      imageFiles.map(async (file) => {
+      imageFiles.map(async (file, index) => {
+        console.log(`Converting image ${index + 1}/${imageFiles.length} to base64...`);
         const base64 = await fileToBase64(file.uri);
         if (!base64) {
-          throw new Error(`Kon afbeelding niet converteren: ${file.uri}`);
+          throw new Error(`Kon afbeelding ${index + 1} niet converteren: ${file.uri}`);
         }
         return { base64, name: file.name };
       })
@@ -50,10 +53,11 @@ export const processBankStatements = async (
 
     // Convert PDF files to base64
     const base64PDFs = await Promise.all(
-      pdfFiles.map(async (file) => {
+      pdfFiles.map(async (file, index) => {
+        console.log(`Converting PDF ${index + 1}/${pdfFiles.length} to base64...`);
         const base64 = await fileToBase64(file.uri);
         if (!base64) {
-          throw new Error(`Kon PDF niet converteren: ${file.uri}`);
+          throw new Error(`Kon PDF ${index + 1} niet converteren: ${file.uri}`);
         }
         return { base64, name: file.name };
       })
@@ -172,7 +176,9 @@ BELANGRIJK:
       },
     ];
     
+    console.log('Sending bank statement request to ChatGPT API...');
     const data = await callChatGPTAPI(messages, apiKey);
+    console.log('Received bank statement response from ChatGPT API');
     
     if (data.completion) {
       try {
@@ -185,7 +191,7 @@ BELANGRIJK:
           const transactions = JSON.parse(jsonStr);
           
           // Validate and clean the transactions
-          return transactions.filter((transaction: any) => 
+          const validTransactions = transactions.filter((transaction: any) => 
             transaction.date && 
             transaction.description && 
             typeof transaction.amount === 'number'
@@ -195,18 +201,31 @@ BELANGRIJK:
             amount: transaction.amount,
             vatRate: transaction.vatRate || 21,
           }));
+          
+          console.log(`Successfully parsed ${validTransactions.length} transactions`);
+          return validTransactions;
         }
       } catch (parseError) {
         console.error('Error parsing JSON from AI response:', parseError);
         console.log('AI Response:', data.completion);
-        throw new Error('Kon transacties niet verwerken uit AI antwoord. Mogelijk is het PDF formaat niet ondersteund.');
+        throw new Error('Kon transacties niet verwerken uit AI antwoord. Mogelijk is het bankafschrift formaat niet ondersteund of de foto niet duidelijk genoeg.');
       }
     }
     
-    throw new Error('Geen transacties gevonden in de bankafschriften');
+    throw new Error('Geen transacties gevonden in de bankafschriften. Controleer of de bestanden duidelijk leesbaar zijn.');
   } catch (error) {
     console.error('Error processing bank statements:', error);
-    throw error;
+    
+    // Re-throw with user-friendly message if it's our custom error
+    if ((error as Error).message.includes('te veel verzoeken') || 
+        (error as Error).message.includes('API sleutel') ||
+        (error as Error).message.includes('Toegang geweigerd') ||
+        (error as Error).message.includes('server is tijdelijk')) {
+      throw error;
+    }
+    
+    // Generic error for other cases
+    throw new Error('Kon bankafschriften niet verwerken. Controleer je internetverbinding en probeer het opnieuw. Als het probleem aanhoudt, wacht dan een paar minuten voordat je het opnieuw probeert.');
   }
 };
 

@@ -39,9 +39,11 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
   const [permission, requestPermission] = useCameraPermissions();
   const [isProcessing, setIsProcessing] = useState(false);
   const [facing, setFacing] = useState<CameraType>('back');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
   
   const cameraRef = useRef<CameraView>(null);
-  const { addIncome, addExpense, apiKey, dateSelection } = useFinanceStore();
+  const { addIncome, addExpense, apiKey, dateSelection, incomes, expenses } = useFinanceStore();
   
   useEffect(() => {
     if (visible) {
@@ -61,6 +63,46 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
     setDate(selectedDate);
     setImageUris([]);
     setIsProcessing(false);
+    setShowSuggestions(false);
+    setFilteredSuggestions([]);
+  };
+  
+  const getUniqueSuggestions = () => {
+    const entries = type === 'income' ? incomes : expenses;
+    const uniqueNames = [...new Set(entries.map(entry => entry.name))];
+    return uniqueNames.sort();
+  };
+  
+  const handleNameChange = (text: string) => {
+    setName(text);
+    
+    if (text.length > 0) {
+      const suggestions = getUniqueSuggestions();
+      const filtered = suggestions.filter(suggestion => 
+        suggestion.toLowerCase().includes(text.toLowerCase())
+      );
+      setFilteredSuggestions(filtered);
+      setShowSuggestions(filtered.length > 0);
+    } else {
+      setShowSuggestions(false);
+      setFilteredSuggestions([]);
+    }
+  };
+  
+  const selectSuggestion = (suggestion: string) => {
+    setName(suggestion);
+    setShowSuggestions(false);
+    setFilteredSuggestions([]);
+    
+    // Auto-fill other fields based on the most recent entry with this name
+    const entries = type === 'income' ? incomes : expenses;
+    const recentEntry = entries
+      .filter(entry => entry.name === suggestion)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+    
+    if (recentEntry) {
+      setVatRate(recentEntry.vatRate.toString());
+    }
   };
   
   const handleDateChange = (event: any, selectedDate?: Date) => {
@@ -232,13 +274,34 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
             
             <ScrollView style={styles.formContainer} showsVerticalScrollIndicator={false}>
               <Text style={styles.label}>Naam</Text>
-              <TextInput
-                style={styles.input}
-                value={name}
-                onChangeText={setName}
-                placeholder="Voer naam in"
-                placeholderTextColor={Colors.lightText}
-              />
+              <View style={styles.nameInputContainer}>
+                <TextInput
+                  style={styles.input}
+                  value={name}
+                  onChangeText={handleNameChange}
+                  placeholder="Voer naam in"
+                  placeholderTextColor={Colors.lightText}
+                />
+                {showSuggestions && filteredSuggestions.length > 0 && (
+                  <View style={styles.suggestionsContainer}>
+                    <ScrollView 
+                      style={styles.suggestionsList}
+                      keyboardShouldPersistTaps="handled"
+                      nestedScrollEnabled
+                    >
+                      {filteredSuggestions.slice(0, 5).map((suggestion, index) => (
+                        <TouchableOpacity
+                          key={index}
+                          style={styles.suggestionItem}
+                          onPress={() => selectSuggestion(suggestion)}
+                        >
+                          <Text style={styles.suggestionText}>{suggestion}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
+              </View>
               
               <Text style={styles.label}>Bedrag (€)</Text>
               <TextInput
@@ -619,5 +682,36 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     fontWeight: 'bold',
+  },
+  nameInputContainer: {
+    position: 'relative',
+    zIndex: 1000,
+  },
+  suggestionsContainer: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    backgroundColor: Colors.card,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderTopWidth: 0,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    maxHeight: 150,
+    zIndex: 1001,
+  },
+  suggestionsList: {
+    maxHeight: 150,
+  },
+  suggestionItem: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  suggestionText: {
+    fontSize: 16,
+    color: Colors.text,
   },
 });

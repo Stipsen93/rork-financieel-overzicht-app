@@ -110,20 +110,31 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
   };
   
   const takePicture = async () => {
-    if (!cameraRef.current) return;
+    if (!cameraRef.current) {
+      Alert.alert('Fout', 'Camera niet beschikbaar');
+      return;
+    }
     
     try {
+      console.log('Taking picture...');
       const photo = await cameraRef.current.takePictureAsync({
         quality: 0.8,
         base64: false,
+        skipProcessing: Platform.OS === 'android', // Skip processing on Android for faster capture
       });
-      if (photo) {
+      
+      console.log('Photo taken:', photo);
+      
+      if (photo && photo.uri) {
         setImageUris(prev => [...prev, photo.uri]);
-        // Don't close camera automatically to allow multiple photos
+        console.log('Photo added to list, total:', imageUris.length + 1);
+      } else {
+        Alert.alert('Fout', 'Foto kon niet worden opgeslagen');
       }
     } catch (error) {
       console.error('Error taking picture:', error);
-      Alert.alert('Fout', 'Kon geen foto maken');
+      const errorMessage = error instanceof Error ? error.message : 'Onbekende fout';
+      Alert.alert('Camera Fout', `Kon geen foto maken: ${errorMessage}`);
     }
   };
   

@@ -128,7 +128,8 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
       amount: parseFloat(amount.replace(',', '.')),
       vatRate: parseFloat(vatRate),
       date: date.toISOString(),
-      imageUri: imageUris.length > 0 ? imageUris[0] : undefined, // Store first image for compatibility
+      imageUri: imageUris.length > 0 ? imageUris[0] : undefined,
+      imageUris: imageUris.length > 0 ? imageUris : undefined,
     };
     
     if (type === 'income') {
@@ -225,10 +226,12 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
           setDate(new Date(result.date));
         }
         Alert.alert('Succes', `${imageUris.length} foto's succesvol verwerkt!`);
+      } else {
+        Alert.alert('Info', `Foto's zijn toegevoegd maar konden niet automatisch verwerkt worden. Vul de gegevens handmatig in.`);
       }
     } catch (error) {
       console.error('Error processing receipts:', error);
-      Alert.alert('Fout', 'Kon bonnen niet verwerken. Controleer je internetverbinding en API sleutel.');
+      Alert.alert('Info', `Foto's zijn toegevoegd maar konden niet automatisch verwerkt worden. Vul de gegevens handmatig in.`);
     } finally {
       setIsProcessing(false);
     }

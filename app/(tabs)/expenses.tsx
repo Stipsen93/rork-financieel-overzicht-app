@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useFinanceStore } from '@/store/financeStore';
 import Colors from '@/constants/colors';
 import MonthYearPicker from '@/components/MonthYearPicker';
@@ -48,51 +48,59 @@ export default function ExpensesScreen() {
   
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <MonthYearPicker
-          year={dateSelection.year}
-          month={dateSelection.month}
-          onSelect={handleDateChange}
-        />
-      </View>
-      
-      <View style={styles.summaryContainer}>
-        <SummaryCard title="Totaal Uitgaven" amount={totalExpense} isPositive={false} />
-        <SummaryCard title="BTW te Vorderen" amount={totalVat} isPositive={true} />
-      </View>
-      
-      <SearchBar
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-        placeholder="Zoek op naam, bedrag of datum..."
-      />
-      
-      <View style={styles.listContainer}>
-        <Text style={styles.listTitle}>
-          Uitgaven Posten {searchQuery ? `(${searchedExpenses.length} van ${filteredExpenses.length})` : ''}
-        </Text>
-        
-        {searchedExpenses.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyStateText}>
-              {searchQuery 
-                ? `Geen uitgaven posten gevonden voor "${searchQuery}"`
-                : 'Geen uitgaven posten voor deze maand'
-              }
-            </Text>
+      <ScrollView 
+        style={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+        stickyHeaderIndices={[0]}
+      >
+        <View style={styles.stickyHeader}>
+          <View style={styles.header}>
+            <MonthYearPicker
+              year={dateSelection.year}
+              month={dateSelection.month}
+              onSelect={handleDateChange}
+            />
           </View>
-        ) : (
-          <FlatList
-            data={searchedExpenses}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <FinanceEntryItem entry={item} onDelete={removeExpense} />
-            )}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.listContent}
+          
+          <SearchBar
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Zoek op naam, bedrag of datum..."
           />
-        )}
-      </View>
+        </View>
+        
+        <View style={styles.summaryContainer}>
+          <SummaryCard title="Totaal Uitgaven" amount={totalExpense} isPositive={false} />
+          <SummaryCard title="BTW te Vorderen" amount={totalVat} isPositive={true} />
+        </View>
+        
+        <View style={styles.listContainer}>
+          <Text style={styles.listTitle}>
+            Uitgaven Posten {searchQuery ? `(${searchedExpenses.length} van ${filteredExpenses.length})` : ''}
+          </Text>
+          
+          {searchedExpenses.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateText}>
+                {searchQuery 
+                  ? `Geen uitgaven posten gevonden voor "${searchQuery}"`
+                  : 'Geen uitgaven posten voor deze maand'
+                }
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.listWrapper}>
+              {searchedExpenses.map((item) => (
+                <FinanceEntryItem 
+                  key={item.id} 
+                  entry={item} 
+                  onDelete={removeExpense} 
+                />
+              ))}
+            </View>
+          )}
+        </View>
+      </ScrollView>
       
       <FloatingActionButton type="expense" onPress={() => setShowForm(true)} />
       
@@ -110,6 +118,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
+  scrollContainer: {
+    flex: 1,
+  },
+  stickyHeader: {
+    backgroundColor: Colors.background,
+    zIndex: 1000,
+  },
   header: {
     padding: 16,
     backgroundColor: Colors.secondary,
@@ -120,8 +135,11 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   listContainer: {
-    flex: 1,
     marginTop: 8,
+    paddingBottom: 100,
+  },
+  listWrapper: {
+    paddingHorizontal: 16,
   },
   listTitle: {
     fontSize: 18,
@@ -130,9 +148,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 8,
   },
-  listContent: {
-    paddingBottom: 80,
-  },
+
   emptyState: {
     flex: 1,
     justifyContent: 'center',

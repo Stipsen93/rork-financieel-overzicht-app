@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { DollarSign } from 'lucide-react-native';
 import { useFinanceStore } from '@/store/financeStore';
 import Colors from '@/constants/colors';
@@ -58,66 +58,74 @@ export default function IncomeScreen() {
   
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <MonthYearPicker
-          year={dateSelection.year}
-          month={dateSelection.month}
-          onSelect={handleDateChange}
-        />
-        
-        {showStartingCapital && (
-          <TouchableOpacity
-            style={styles.startingCapitalButton}
-            onPress={() => setShowStartingCapitalForm(true)}
-          >
-            <DollarSign size={20} color={Colors.text} />
-            <Text style={styles.startingCapitalButtonText}>Start Kapitaal</Text>
-            {startingCapital > 0 && (
-              <Text style={styles.startingCapitalAmount}>
-                {formatCurrency(startingCapital)}
-              </Text>
+      <ScrollView 
+        style={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+        stickyHeaderIndices={[0]}
+      >
+        <View style={styles.stickyHeader}>
+          <View style={styles.header}>
+            <MonthYearPicker
+              year={dateSelection.year}
+              month={dateSelection.month}
+              onSelect={handleDateChange}
+            />
+            
+            {showStartingCapital && (
+              <TouchableOpacity
+                style={styles.startingCapitalButton}
+                onPress={() => setShowStartingCapitalForm(true)}
+              >
+                <DollarSign size={20} color={Colors.text} />
+                <Text style={styles.startingCapitalButtonText}>Start Kapitaal</Text>
+                {startingCapital > 0 && (
+                  <Text style={styles.startingCapitalAmount}>
+                    {formatCurrency(startingCapital)}
+                  </Text>
+                )}
+              </TouchableOpacity>
             )}
-          </TouchableOpacity>
-        )}
-      </View>
-      
-      <View style={styles.summaryContainer}>
-        <SummaryCard title="Totaal Inkomen" amount={totalIncome} isPositive={true} />
-        <SummaryCard title="BTW te Betalen" amount={totalVat} isPositive={false} />
-      </View>
-      
-      <SearchBar
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-        placeholder="Zoek op naam, bedrag of datum..."
-      />
-      
-      <View style={styles.listContainer}>
-        <Text style={styles.listTitle}>
-          Inkomen Posten {searchQuery ? `(${searchedIncomes.length} van ${filteredIncomes.length})` : ''}
-        </Text>
-        
-        {searchedIncomes.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyStateText}>
-              {searchQuery 
-                ? `Geen inkomen posten gevonden voor "${searchQuery}"`
-                : 'Geen inkomen posten voor deze maand'
-              }
-            </Text>
           </View>
-        ) : (
-          <FlatList
-            data={searchedIncomes}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <FinanceEntryItem entry={item} onDelete={removeIncome} />
-            )}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.listContent}
+          
+          <SearchBar
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Zoek op naam, bedrag of datum..."
           />
-        )}
-      </View>
+        </View>
+        
+        <View style={styles.summaryContainer}>
+          <SummaryCard title="Totaal Inkomen" amount={totalIncome} isPositive={true} />
+          <SummaryCard title="BTW te Betalen" amount={totalVat} isPositive={false} />
+        </View>
+        
+        <View style={styles.listContainer}>
+          <Text style={styles.listTitle}>
+            Inkomen Posten {searchQuery ? `(${searchedIncomes.length} van ${filteredIncomes.length})` : ''}
+          </Text>
+          
+          {searchedIncomes.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateText}>
+                {searchQuery 
+                  ? `Geen inkomen posten gevonden voor "${searchQuery}"`
+                  : 'Geen inkomen posten voor deze maand'
+                }
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.listWrapper}>
+              {searchedIncomes.map((item) => (
+                <FinanceEntryItem 
+                  key={item.id} 
+                  entry={item} 
+                  onDelete={removeIncome} 
+                />
+              ))}
+            </View>
+          )}
+        </View>
+      </ScrollView>
       
       <FloatingActionButton type="income" onPress={() => setShowForm(true)} />
       
@@ -139,6 +147,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  scrollContainer: {
+    flex: 1,
+  },
+  stickyHeader: {
+    backgroundColor: Colors.background,
+    zIndex: 1000,
   },
   header: {
     padding: 16,
@@ -175,8 +190,11 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   listContainer: {
-    flex: 1,
     marginTop: 8,
+    paddingBottom: 100,
+  },
+  listWrapper: {
+    paddingHorizontal: 16,
   },
   listTitle: {
     fontSize: 18,
@@ -185,9 +203,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 8,
   },
-  listContent: {
-    paddingBottom: 80,
-  },
+
   emptyState: {
     flex: 1,
     justifyContent: 'center',

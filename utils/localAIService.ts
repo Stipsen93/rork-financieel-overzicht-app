@@ -58,12 +58,17 @@ class LocalOCREngine {
     try {
       console.log('Initializing Tesseract OCR engine...');
       
+      // Check if we're on web and Worker is available
+      if (Platform.OS === 'web' && typeof Worker === 'undefined') {
+        throw new Error('Web Workers zijn niet beschikbaar in deze browser');
+      }
+      
       // Create worker with proper configuration
       this.worker = await createWorker();
       
       // Load Dutch and English languages for better receipt recognition
-      await this.worker.loadLanguage('nld+eng');
-      await this.worker.initialize('nld+eng');
+      await this.worker.loadLanguage('eng');
+      await this.worker.initialize('eng');
       
       // Configure for receipt text recognition
       await this.worker.setParameters({
@@ -595,47 +600,69 @@ export class LocalAIService {
 
   private async fileToBase64(uri: string): Promise<string | null> {
     try {
+      console.log('Converting file to base64:', uri);
       let imageData: string;
       
       if (Platform.OS === 'web') {
-        const response = await fetch(uri);
-        const blob = await response.blob();
-        
-        // Check file size
-        const fileSizeKB = blob.size / 1024;
-        console.log(`Originele bestandsgrootte: ${Math.round(fileSizeKB)}KB`);
-        
-        if (fileSizeKB > 2000) { // If larger than 2MB
-          throw new Error('Afbeelding is te groot. Kies een kleinere afbeelding of comprimeer deze eerst.');
-        }
-        
-        imageData = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
-      } else {
-        // For native platforms, we need to use expo-file-system
-        const FileSystem = await import('expo-file-system');
-        
-        // Check file size first
-        const fileInfo = await FileSystem.getInfoAsync(uri);
-        if (fileInfo.exists && fileInfo.size) {
-          const fileSizeKB = fileInfo.size / 1024;
+        try {
+          const response = await fetch(uri);
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          
+          const blob = await response.blob();
+          
+          // Check file size
+          const fileSizeKB = blob.size / 1024;
           console.log(`Originele bestandsgrootte: ${Math.round(fileSizeKB)}KB`);
           
           if (fileSizeKB > 2000) { // If larger than 2MB
             throw new Error('Afbeelding is te groot. Kies een kleinere afbeelding of comprimeer deze eerst.');
           }
+          
+          imageData = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              const result = reader.result;
+              if (typeof result === 'string') {
+                resolve(result);
+              } else {
+                reject(new Error('FileReader result is not a string'));
+              }
+            };
+            reader.onerror = () => reject(new Error('FileReader error'));
+            reader.readAsDataURL(blob);
+          });
+        } catch (fetchError) {
+          console.error('Fetch error:', fetchError);
+          throw new Error('Kon afbeelding niet laden: ' + (fetchError instanceof Error ? fetchError.message : 'Onbekende fout'));
         }
-        
-        const base64 = await FileSystem.readAsStringAsync(uri, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-        
-        const mimeType = this.getMimeType(uri);
-        imageData = `data:${mimeType};base64,${base64}`;
+      } else {
+        try {
+          // For native platforms, we need to use expo-file-system
+          const FileSystem = await import('expo-file-system');
+          
+          // Check file size first
+          const fileInfo = await FileSystem.getInfoAsync(uri);
+          if (fileInfo.exists && fileInfo.size) {
+            const fileSizeKB = fileInfo.size / 1024;
+            console.log(`Originele bestandsgrootte: ${Math.round(fileSizeKB)}KB`);
+            
+            if (fileSizeKB > 2000) { // If larger than 2MB
+              throw new Error('Afbeelding is te groot. Kies een kleinere afbeelding of comprimeer deze eerst.');
+            }
+          }
+          
+          const base64 = await FileSystem.readAsStringAsync(uri, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+          
+          const mimeType = this.getMimeType(uri);
+          imageData = `data:${mimeType};base64,${base64}`;
+        } catch (fsError) {
+          console.error('FileSystem error:', fsError);
+          throw new Error('Kon bestand niet lezen: ' + (fsError instanceof Error ? fsError.message : 'Onbekende fout'));
+        }
       }
       
       // Compress if still too large for OCR processing
@@ -645,13 +672,14 @@ export class LocalAIService {
         imageData = await this.compressImage(imageData, 500); // Target 500KB
       }
       
+      console.log('File conversion successful');
       return imageData;
     } catch (error) {
       console.error('Error converting file to base64:', error);
       if (error instanceof Error && error.message.includes('te groot')) {
         throw error; // Re-throw size errors
       }
-      return null;
+      throw new Error('Kon afbeelding niet converteren: ' + (error instanceof Error ? error.message : 'Onbekende fout'));
     }
   }
 
@@ -689,4 +717,49 @@ export const processReceiptImagesLocal = async (
 ): Promise<ReceiptData | null> => {
   const result = await localAI.processReceiptImages(imageUris);
   return result.success ? result.data || null : null;
+};
+
+// Test function to test OCR with a sample receipt from internet
+export const testOCRWithSampleReceipt = async (): Promise<ProcessingResult> => {
+  try {
+    console.log('Testing OCR with sample receipt from internet...');
+    
+    // Use a sample receipt image from Unsplash (receipt-like image)
+    const sampleReceiptUrl = 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=800&h=600&fit=crop&crop=center';
+    
+    // For testing, we'll create a simple test receipt data
+    // In a real scenario, this would be processed through OCR
+    const testResult = await localAI.processReceiptImages([sampleReceiptUrl]);
+    
+    console.log('OCR test result:', testResult);
+    return testResult;
+  } catch (error) {
+    console.error('OCR test failed:', error);
+    return {
+      success: false,
+      error: 'OCR test mislukt: ' + (error instanceof Error ? error.message : 'Onbekende fout')
+    };
+  }
+};
+
+// Test function with a more realistic receipt image
+export const testOCRWithReceiptImage = async (): Promise<ProcessingResult> => {
+  try {
+    console.log('Testing OCR with realistic receipt image...');
+    
+    // Use a more realistic receipt image URL
+    // This is a sample receipt image that should work better with OCR
+    const receiptImageUrl = 'https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=400&h=600&fit=crop';
+    
+    const testResult = await localAI.processReceiptImages([receiptImageUrl]);
+    
+    console.log('Realistic receipt OCR test result:', testResult);
+    return testResult;
+  } catch (error) {
+    console.error('Realistic receipt OCR test failed:', error);
+    return {
+      success: false,
+      error: 'Realistische bonnetje OCR test mislukt: ' + (error instanceof Error ? error.message : 'Onbekende fout')
+    };
+  }
 };

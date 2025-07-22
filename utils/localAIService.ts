@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { createWorker } from 'tesseract.js';
 
 interface ReceiptData {
   name?: string;
@@ -44,78 +45,135 @@ const VAT_PATTERNS = [
   { rate: 0, keywords: ['0%', '0 %', 'btw 0', 'vrijgesteld', 'geen btw'] }
 ];
 
-// OCR engine using web-compatible approach
+// Real OCR engine using Tesseract.js
 class LocalOCREngine {
+  private worker: any = null;
   private isInitialized = false;
 
   private async initializeOCR(): Promise<void> {
-    if (this.isInitialized) {
+    if (this.isInitialized && this.worker) {
       return;
     }
 
     try {
-      console.log('Initializing OCR engine...');
+      console.log('Initializing Tesseract OCR engine...');
+      
+      // Create worker with proper configuration
+      this.worker = await createWorker();
+      
+      // Load Dutch and English languages for better receipt recognition
+      await this.worker.loadLanguage('nld+eng');
+      await this.worker.initialize('nld+eng');
+      
+      // Configure for receipt text recognition
+      await this.worker.setParameters({
+        tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz€.,:-/% ',
+        tessedit_pageseg_mode: '6', // Uniform block of text
+      });
+      
       this.isInitialized = true;
-      console.log('OCR engine initialized successfully');
+      console.log('Tesseract OCR engine initialized successfully');
     } catch (error) {
-      console.error('Failed to initialize OCR engine:', error);
-      throw new Error('OCR initialisatie mislukt');
+      console.error('Failed to initialize Tesseract OCR engine:', error);
+      throw new Error('OCR initialisatie mislukt: ' + (error instanceof Error ? error.message : 'Onbekende fout'));
     }
   }
 
-  private async extractTextFromImage(imageData: string): Promise<string> {
+  async extractTextFromImage(imageData: string): Promise<string> {
     try {
       await this.initializeOCR();
       
-      console.log('Starting OCR text extraction...');
-      
-      // Use a web-compatible OCR approach
-      if (Platform.OS === 'web') {
-        return await this.extractTextWeb(imageData);
-      } else {
-        return await this.extractTextNative(imageData);
+      if (!this.worker) {
+        throw new Error('OCR worker niet geïnitialiseerd');
       }
+      
+      console.log('Starting Tesseract OCR text extraction...');
+      
+      // Preprocess image for better OCR results
+      const processedImage = await this.preprocessImage(imageData);
+      
+      // Perform OCR
+      const { data: { text } } = await this.worker.recognize(processedImage);
+      
+      console.log('OCR extraction completed');
+      console.log('Extracted text:', text.substring(0, 200) + '...');
+      
+      return text;
     } catch (error) {
       console.error('OCR text extraction failed:', error);
-      throw new Error('Tekst extractie mislukt');
+      throw new Error('Tekst extractie mislukt: ' + (error instanceof Error ? error.message : 'Onbekende fout'));
     }
   }
 
-  private async extractTextWeb(imageData: string): Promise<string> {
-    // For web, use a simple image analysis approach
-    // This is a simplified implementation that analyzes image patterns
-    console.log('Using web-compatible OCR...');
-    
-    // Simulate OCR processing with realistic receipt text patterns
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        // Generate realistic receipt text based on common patterns
-        const mockReceiptTexts = [
-          `JUMBO SUPERMARKTEN\nKassabon\n\nDatum: ${new Date().toLocaleDateString('nl-NL')}\nTijd: ${new Date().toLocaleTimeString('nl-NL')}\n\nBrood wit 800g\n€ 1.89\nMelk vol 1L\n€ 1.25\nKaas jong belegen\n€ 4.50\n\nSubtotaal: € 7.64\nBTW 9%: € 0.62\nTotaal: € 8.26`,
-          `Albert Heijn\n\nBon: 1234567890\nDatum: ${new Date().toLocaleDateString('nl-NL')}\n\nAppels Elstar 1kg\n€ 2.49\nYoghurt naturel\n€ 1.79\nEieren 12 stuks\n€ 3.29\n\nSubtotaal: € 7.57\nBTW 9%: € 0.61\nTe betalen: € 8.18`,
-          `LIDL\nFiliaalnummer: 123\n\nDatum: ${new Date().toLocaleDateString('nl-NL')}\nTijd: ${new Date().toLocaleTimeString('nl-NL')}\n\nBananen 1kg\n€ 1.69\nTomaten 500g\n€ 1.99\nPasta 500g\n€ 0.89\n\nTotaal: € 4.57\nBTW 21%: € 0.79\nEindtotaal: € 5.36`
-        ];
-        
-        const randomText = mockReceiptTexts[Math.floor(Math.random() * mockReceiptTexts.length)];
-        console.log('OCR extraction completed (web simulation)');
-        resolve(randomText);
-      }, 1500); // Simulate processing time
-    });
-  }
-
-  private async extractTextNative(imageData: string): Promise<string> {
-    // For native platforms, we could use a different OCR library
-    // For now, use the same simulation approach
-    console.log('Using native OCR simulation...');
-    return this.extractTextWeb(imageData);
+  private async preprocessImage(imageData: string): Promise<string> {
+    try {
+      if (Platform.OS === 'web') {
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            if (!ctx) {
+              reject(new Error('Canvas context niet beschikbaar'));
+              return;
+            }
+            
+            // Set canvas size to image size
+            canvas.width = img.width;
+            canvas.height = img.height;
+            
+            // Draw original image
+            ctx.drawImage(img, 0, 0);
+            
+            // Get image data for processing
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+            
+            // Apply image preprocessing for better OCR
+            for (let i = 0; i < data.length; i += 4) {
+              // Convert to grayscale
+              const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+              
+              // Apply threshold for better contrast (receipt text is usually dark on light background)
+              const threshold = gray > 128 ? 255 : 0;
+              
+              data[i] = threshold;     // Red
+              data[i + 1] = threshold; // Green
+              data[i + 2] = threshold; // Blue
+              // Alpha channel stays the same
+            }
+            
+            // Put processed image data back
+            ctx.putImageData(imageData, 0, 0);
+            
+            // Return processed image as data URL
+            resolve(canvas.toDataURL('image/png'));
+          };
+          
+          img.onerror = () => reject(new Error('Kon afbeelding niet laden voor preprocessing'));
+          img.src = imageData;
+        });
+      } else {
+        // For native, return original image (preprocessing could be added later)
+        return imageData;
+      }
+    } catch (error) {
+      console.error('Image preprocessing failed, using original:', error);
+      return imageData;
+    }
   }
 
   async cleanup(): Promise<void> {
     try {
+      if (this.worker) {
+        await this.worker.terminate();
+        this.worker = null;
+      }
       this.isInitialized = false;
-      console.log('OCR engine cleaned up');
+      console.log('Tesseract OCR engine cleaned up');
     } catch (error) {
-      console.error('Error cleaning up OCR engine:', error);
+      console.error('Error cleaning up Tesseract OCR engine:', error);
     }
   }
 
@@ -265,16 +323,6 @@ class LocalOCREngine {
       .join(' ');
   }
 
-  async processImage(imageData: string): Promise<ReceiptData> {
-    try {
-      const text = await this.extractTextFromImage(imageData);
-      return this.processText(text);
-    } catch (error) {
-      console.error('Error processing image:', error);
-      throw error;
-    }
-  }
-
   async processText(text: string): Promise<ReceiptData> {
     console.log('Processing extracted text for receipt data...');
     
@@ -294,14 +342,40 @@ class LocalOCREngine {
   }
 }
 
-// PDF text extraction (simplified)
+// PDF text extraction using OCR
 class PDFProcessor {
+  private ocrEngine: LocalOCREngine;
+
+  constructor(ocrEngine: LocalOCREngine) {
+    this.ocrEngine = ocrEngine;
+  }
+
   async extractTextFromPDF(base64PDF: string): Promise<string> {
-    // This is a simplified PDF text extraction
-    // In a real implementation, you would use a library like pdf-parse or PDF.js
-    // For now, we'll return a placeholder
-    console.log('PDF processing not fully implemented - would extract text here');
-    return '';
+    try {
+      console.log('Processing PDF with OCR...');
+      
+      if (Platform.OS === 'web') {
+        // For web, we can use PDF.js to convert PDF to images, then OCR
+        // For now, we'll use a simplified approach
+        console.log('PDF OCR processing on web - converting to image first');
+        
+        // In a full implementation, you would:
+        // 1. Use PDF.js to render PDF pages to canvas
+        // 2. Convert each canvas to image data
+        // 3. Run OCR on each image
+        // 4. Combine results
+        
+        // For now, treat PDF as image and try OCR directly
+        return await this.ocrEngine.extractTextFromImage(base64PDF);
+      } else {
+        // For native, similar approach
+        console.log('PDF OCR processing on native - converting to image first');
+        return await this.ocrEngine.extractTextFromImage(base64PDF);
+      }
+    } catch (error) {
+      console.error('PDF OCR processing failed:', error);
+      throw new Error('PDF tekst extractie mislukt: ' + (error instanceof Error ? error.message : 'Onbekende fout'));
+    }
   }
 }
 
@@ -312,12 +386,12 @@ export class LocalAIService {
 
   constructor() {
     this.ocrEngine = new LocalOCREngine();
-    this.pdfProcessor = new PDFProcessor();
+    this.pdfProcessor = new PDFProcessor(this.ocrEngine);
   }
 
   async processReceiptImages(imageUris: string[]): Promise<ProcessingResult> {
     try {
-      console.log(`Processing ${imageUris.length} images with OCR...`);
+      console.log(`Processing ${imageUris.length} images with Tesseract OCR...`);
       
       if (imageUris.length === 0) {
         return {
@@ -353,7 +427,8 @@ export class LocalAIService {
         imageData = base64;
       }
 
-      const extractedData = await this.ocrEngine.processImage(imageData);
+      const text = await this.ocrEngine.extractTextFromImage(imageData);
+      const extractedData = await this.ocrEngine.processText(text);
       
       return {
         success: true,
@@ -403,7 +478,8 @@ export class LocalAIService {
         pdfData = base64;
       }
 
-      const extractedData = await this.ocrEngine.processImage(pdfData);
+      const text = await this.pdfProcessor.extractTextFromPDF(pdfData);
+      const extractedData = await this.ocrEngine.processText(text);
       
       return {
         success: true,
@@ -530,7 +606,7 @@ export class LocalAIService {
         console.log(`Originele bestandsgrootte: ${Math.round(fileSizeKB)}KB`);
         
         if (fileSizeKB > 2000) { // If larger than 2MB
-          throw new Error('Afbeelding is te groot voor Github API. Kies een kleinere afbeelding of comprimeer deze eerst.');
+          throw new Error('Afbeelding is te groot. Kies een kleinere afbeelding of comprimeer deze eerst.');
         }
         
         imageData = await new Promise((resolve, reject) => {
@@ -550,7 +626,7 @@ export class LocalAIService {
           console.log(`Originele bestandsgrootte: ${Math.round(fileSizeKB)}KB`);
           
           if (fileSizeKB > 2000) { // If larger than 2MB
-            throw new Error('Afbeelding is te groot voor Github API. Kies een kleinere afbeelding of comprimeer deze eerst.');
+            throw new Error('Afbeelding is te groot. Kies een kleinere afbeelding of comprimeer deze eerst.');
           }
         }
         
@@ -562,10 +638,10 @@ export class LocalAIService {
         imageData = `data:${mimeType};base64,${base64}`;
       }
       
-      // Compress if still too large for API
+      // Compress if still too large for OCR processing
       const estimatedSizeKB = (imageData.length * 0.75) / 1024;
       if (estimatedSizeKB > 800) { // Compress if larger than 800KB
-        console.log('Afbeelding wordt gecomprimeerd voor API compatibiliteit...');
+        console.log('Afbeelding wordt gecomprimeerd voor OCR verwerking...');
         imageData = await this.compressImage(imageData, 500); // Target 500KB
       }
       

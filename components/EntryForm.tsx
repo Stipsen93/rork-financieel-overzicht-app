@@ -41,14 +41,15 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
   const [showCamera, setShowCamera] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
   const [isProcessing, setIsProcessing] = useState(false);
-  const [useLocalAI, setUseLocalAI] = useState(true);
+
+  const [apiChoice, setApiChoice] = useState<'local' | 'openai' | 'github'>('local');
   const [facing, setFacing] = useState<CameraType>('back');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
   const [entryType, setEntryType] = useState<'income' | 'expense'>(type);
   
   const cameraRef = useRef<CameraView>(null);
-  const { addIncome, addExpense, updateIncome, updateExpense, removeIncome, removeExpense, apiKey, useApi, dateSelection, incomes, expenses } = useFinanceStore();
+  const { addIncome, addExpense, updateIncome, updateExpense, removeIncome, removeExpense, apiKey, githubToken, useApi, useGithubApi, dateSelection, incomes, expenses } = useFinanceStore();
   
   useEffect(() => {
     if (visible) {
@@ -82,7 +83,8 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
     setShowSuggestions(false);
     setFilteredSuggestions([]);
     setEntryType(type);
-    setUseLocalAI(true);
+
+    setApiChoice('local');
   };
   
   const getUniqueSuggestions = () => {
@@ -253,10 +255,23 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
     setIsProcessing(true);
     
     try {
-      // If API is disabled in settings, always use local AI
-      const shouldUseLocalAI = !useApi || useLocalAI;
-      console.log(`Processing with ${shouldUseLocalAI ? 'Local AI' : 'ChatGPT API'}...`);
-      const result = await processReceiptImages(imageUris, apiKey || undefined, shouldUseLocalAI);
+      // Determine which API to use based on settings and user choice
+      let shouldUseLocalAI = true;
+      let shouldUseGithubAPI = false;
+      let currentApiKey = undefined;
+      
+      if (apiChoice === 'openai' && useApi && apiKey) {
+        shouldUseLocalAI = false;
+        shouldUseGithubAPI = false;
+        currentApiKey = apiKey;
+      } else if (apiChoice === 'github' && useGithubApi && githubToken) {
+        shouldUseLocalAI = false;
+        shouldUseGithubAPI = true;
+        currentApiKey = githubToken;
+      }
+      
+      console.log(`Processing with ${shouldUseLocalAI ? 'Local AI' : (shouldUseGithubAPI ? 'GitHub API' : 'OpenAI API')}...`);
+      const result = await processReceiptImages(imageUris, currentApiKey, shouldUseLocalAI, shouldUseGithubAPI);
       
       if (result) {
         setName(result.name || '');
@@ -266,7 +281,7 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
           setDate(new Date(result.date));
         }
         
-        const processingMethod = (!useApi || useLocalAI) ? 'Lokale AI' : 'ChatGPT API';
+        const processingMethod = shouldUseLocalAI ? 'Lokale AI' : (shouldUseGithubAPI ? 'GitHub API' : 'OpenAI API');
         Alert.alert(
           'Succes', 
           `${imageUris.length} foto${imageUris.length > 1 ? "'s" : ''} succesvol verwerkt met ${processingMethod}!`
@@ -533,44 +548,66 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
                 </TouchableOpacity>
               </View>
               
-              {/* AI Processing Toggle - Only show if API is enabled in settings */}
-              {useApi && (
+              {/* AI Processing Toggle - Show available options based on settings */}
+              {(useApi || useGithubApi) && (
                 <View style={styles.aiToggleContainer}>
                   <Text style={styles.aiToggleLabel}>Verwerking:</Text>
-                  <View style={styles.aiToggleButtons}>
+                  <View style={styles.apiChoiceContainer}>
                     <TouchableOpacity
                       style={[
-                        styles.aiToggleButton,
-                        useLocalAI && styles.aiToggleButtonActive,
+                        styles.apiChoiceButton,
+                        apiChoice === 'local' && styles.apiChoiceButtonActive,
                       ]}
-                      onPress={() => setUseLocalAI(true)}
+                      onPress={() => setApiChoice('local')}
                     >
-                      <Zap size={14} color={useLocalAI ? Colors.secondary : Colors.text} />
+                      <Zap size={14} color={apiChoice === 'local' ? Colors.secondary : Colors.text} />
                       <Text
                         style={[
-                          styles.aiToggleText,
-                          useLocalAI && styles.aiToggleTextActive,
+                          styles.apiChoiceText,
+                          apiChoice === 'local' && styles.apiChoiceTextActive,
                         ]}
                       >
                         Lokale AI
                       </Text>
                     </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.aiToggleButton,
-                        !useLocalAI && styles.aiToggleButtonActive,
-                      ]}
-                      onPress={() => setUseLocalAI(false)}
-                    >
-                      <Text
+                    
+                    {useApi && apiKey && (
+                      <TouchableOpacity
                         style={[
-                          styles.aiToggleText,
-                          !useLocalAI && styles.aiToggleTextActive,
+                          styles.apiChoiceButton,
+                          apiChoice === 'openai' && styles.apiChoiceButtonActive,
                         ]}
+                        onPress={() => setApiChoice('openai')}
                       >
-                        ChatGPT API
-                      </Text>
-                    </TouchableOpacity>
+                        <Text
+                          style={[
+                            styles.apiChoiceText,
+                            apiChoice === 'openai' && styles.apiChoiceTextActive,
+                          ]}
+                        >
+                          OpenAI
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                    
+                    {useGithubApi && githubToken && (
+                      <TouchableOpacity
+                        style={[
+                          styles.apiChoiceButton,
+                          apiChoice === 'github' && styles.apiChoiceButtonActive,
+                        ]}
+                        onPress={() => setApiChoice('github')}
+                      >
+                        <Text
+                          style={[
+                            styles.apiChoiceText,
+                            apiChoice === 'github' && styles.apiChoiceTextActive,
+                          ]}
+                        >
+                          GitHub
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 </View>
               )}
@@ -966,7 +1003,7 @@ const styles = StyleSheet.create({
     color: Colors.text,
     marginBottom: 8,
   },
-  aiToggleButtons: {
+  apiChoiceContainer: {
     flexDirection: 'row',
     backgroundColor: Colors.card,
     borderRadius: 8,
@@ -974,25 +1011,25 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     overflow: 'hidden',
   },
-  aiToggleButton: {
+  apiChoiceButton: {
     flex: 1,
     paddingVertical: 10,
-    paddingHorizontal: 12,
+    paddingHorizontal: 8,
     alignItems: 'center',
     backgroundColor: Colors.card,
     flexDirection: 'row',
     justifyContent: 'center',
   },
-  aiToggleButtonActive: {
+  apiChoiceButtonActive: {
     backgroundColor: Colors.primary,
   },
-  aiToggleText: {
-    fontSize: 14,
+  apiChoiceText: {
+    fontSize: 12,
     fontWeight: '500',
     color: Colors.text,
     marginLeft: 4,
   },
-  aiToggleTextActive: {
+  apiChoiceTextActive: {
     color: Colors.secondary,
     fontWeight: 'bold',
   },

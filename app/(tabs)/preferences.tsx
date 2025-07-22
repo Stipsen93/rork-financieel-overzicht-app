@@ -8,7 +8,7 @@ import {
   Switch,
 } from 'react-native';
 import { Stack } from 'expo-router';
-import { Settings, DollarSign, Eye, Key } from 'lucide-react-native';
+import { Settings, DollarSign, Eye, Key, Github } from 'lucide-react-native';
 import { useFinanceStore } from '@/store/financeStore';
 import Colors from '@/constants/colors';
 
@@ -18,6 +18,8 @@ export default function PreferencesScreen() {
     setShowStartingCapital,
     useApi,
     setUseApi,
+    useGithubApi,
+    setUseGithubApi,
     incomeDisplayMode,
     setIncomeDisplayMode 
   } = useFinanceStore();
@@ -61,10 +63,10 @@ export default function PreferencesScreen() {
           <View style={styles.preferenceContent}>
             <View style={styles.preferenceHeader}>
               <Key size={24} color={Colors.text} />
-              <Text style={styles.preferenceTitle}>API Gebruiken</Text>
+              <Text style={styles.preferenceTitle}>OpenAI API Gebruiken</Text>
             </View>
             <Text style={styles.preferenceDescription}>
-              Schakel het gebruik van ChatGPT API in voor het verwerken van bonnetjes en facturen
+              Schakel het gebruik van OpenAI ChatGPT API in voor het verwerken van bonnetjes en facturen
             </Text>
           </View>
           <Switch
@@ -72,6 +74,24 @@ export default function PreferencesScreen() {
             onValueChange={setUseApi}
             trackColor={{ false: Colors.border, true: Colors.primary }}
             thumbColor={useApi ? Colors.primaryDark : Colors.lightText}
+          />
+        </View>
+        
+        <View style={styles.preferenceItem}>
+          <View style={styles.preferenceContent}>
+            <View style={styles.preferenceHeader}>
+              <Github size={24} color={Colors.text} />
+              <Text style={styles.preferenceTitle}>GitHub API Gebruiken</Text>
+            </View>
+            <Text style={styles.preferenceDescription}>
+              Schakel het gebruik van GitHub ChatGPT API in voor het verwerken van bonnetjes en facturen
+            </Text>
+          </View>
+          <Switch
+            value={useGithubApi}
+            onValueChange={setUseGithubApi}
+            trackColor={{ false: Colors.border, true: Colors.primary }}
+            thumbColor={useGithubApi ? Colors.primaryDark : Colors.lightText}
           />
         </View>
       </View>
@@ -158,7 +178,7 @@ export default function PreferencesScreen() {
           Deze instellingen worden automatisch opgeslagen en blijven behouden tussen app sessies.
           {"\n\n"}
           <Text style={styles.infoNote}>
-            Let op: API gebruik vereist een geldige ChatGPT API sleutel die je kunt instellen in het profiel.
+            Let op: OpenAI API gebruik vereist een geldige ChatGPT API sleutel en GitHub API gebruik vereist een geldige GitHub token. Deze kun je instellen in het profiel.
           </Text>
         </Text>
       </View>

@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
-import { callChatGPTAPI } from './apiService';
+import { callChatGPTAPI, callGitHubChatGPTAPI } from './apiService';
 import { localAI } from './localAIService';
 
 interface ReceiptData {
@@ -51,7 +51,8 @@ export const processReceiptImagesLocal = async (
 export const processReceiptImages = async (
   imageUris: string[],
   apiKey?: string,
-  useLocalAI: boolean = false
+  useLocalAI: boolean = false,
+  useGithubAPI: boolean = false
 ): Promise<ReceiptData | null> => {
   try {
     if (imageUris.length === 0) {
@@ -68,12 +69,13 @@ export const processReceiptImages = async (
       console.log('Local AI failed, falling back to ChatGPT API...');
     }
 
-    // Fallback to ChatGPT API if available
+    // Fallback to API if available
     if (!apiKey) {
       throw new Error('Geen API sleutel beschikbaar en lokale AI kon de afbeeldingen niet verwerken');
     }
 
-    console.log(`Processing ${imageUris.length} receipt images with ChatGPT API...`);
+    const apiType = useGithubAPI ? 'GitHub API' : 'OpenAI API';
+    console.log(`Processing ${imageUris.length} receipt images with ${apiType}...`);
 
     // Convert all images to base64
     const base64Images = await Promise.all(
@@ -135,9 +137,11 @@ Retourneer alleen het JSON object, geen andere tekst.`,
       },
     ];
     
-    console.log('Sending request to ChatGPT API...');
-    const data = await callChatGPTAPI(messages, apiKey);
-    console.log('Received response from ChatGPT API');
+    console.log(`Sending request to ${apiType}...`);
+    const data = useGithubAPI 
+      ? await callGitHubChatGPTAPI(messages, apiKey)
+      : await callChatGPTAPI(messages, apiKey);
+    console.log(`Received response from ${apiType}`);
     
     if (data.completion) {
       try {

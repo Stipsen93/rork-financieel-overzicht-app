@@ -13,7 +13,9 @@ interface FinanceState {
   yearSelection: YearSelection;
   quarterSelection: QuarterSelection;
   apiKey: string | null;
+  githubToken: string | null;
   useApi: boolean;
+  useGithubApi: boolean;
   backupFrequency: number;
   lastAutoBackup: string | null;
   showStartingCapital: boolean;
@@ -32,7 +34,9 @@ interface FinanceState {
   setYearSelection: (yearSelection: YearSelection) => void;
   setQuarterSelection: (quarterSelection: QuarterSelection) => void;
   setApiKey: (apiKey: string) => void;
+  setGithubToken: (githubToken: string) => void;
   setUseApi: (useApi: boolean) => void;
+  setUseGithubApi: (useGithubApi: boolean) => void;
   setBackupFrequency: (frequency: number) => void;
   setLastAutoBackup: (date: string) => void;
   setStartingCapital: (amount: number) => void;
@@ -109,7 +113,9 @@ export const useFinanceStore = create<FinanceState>()(
         quarter: 5, // Default to "Heel jaar" (whole year)
       },
       apiKey: null,
+      githubToken: null,
       useApi: false, // Default to not using API
+      useGithubApi: false, // Default to not using GitHub API
       backupFrequency: 1, // Default to daily backups
       lastAutoBackup: null,
       showStartingCapital: false, // Default to not showing starting capital
@@ -335,8 +341,16 @@ export const useFinanceStore = create<FinanceState>()(
         set({ apiKey });
       },
       
+      setGithubToken: (githubToken) => {
+        set({ githubToken });
+      },
+      
       setUseApi: (useApi) => {
         set({ useApi });
+      },
+      
+      setUseGithubApi: (useGithubApi) => {
+        set({ useGithubApi });
       },
       
       setBackupFrequency: (frequency) => {

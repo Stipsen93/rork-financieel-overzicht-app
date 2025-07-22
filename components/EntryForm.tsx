@@ -21,7 +21,7 @@ import { Image } from 'expo-image';
 import Colors from '@/constants/colors';
 import { FinanceEntry } from '@/types/finance';
 import { useFinanceStore } from '@/store/financeStore';
-import { processReceiptImages } from '@/utils/ocrService';
+import { processReceiptImages, processReceiptImagesLocal } from '@/utils/ocrService';
 
 interface EntryFormProps {
   type: 'income' | 'expense';
@@ -247,27 +247,44 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
   const processReceipts = async () => {
     if (imageUris.length === 0) return;
     
-    if (!apiKey) {
-      Alert.alert('API Sleutel Ontbreekt', 'Stel je ChatGPT API sleutel in bij profiel instellingen');
-      return;
-    }
-    
     setIsProcessing(true);
     
     try {
-      const result = await processReceiptImages(imageUris, apiKey);
+      // Probeer eerst lokale OCR
+      console.log('Trying local OCR processing...');
+      const localResult = await processReceiptImagesLocal(imageUris);
       
-      if (result) {
-        setName(result.name || '');
-        setAmount(result.amount ? result.amount.toString().replace('.', ',') : '');
-        if (result.vatRate) setVatRate(result.vatRate.toString());
-        if (result.date) {
-          setDate(new Date(result.date));
+      if (localResult && localResult.name && localResult.amount) {
+        setName(localResult.name);
+        setAmount(localResult.amount.toString().replace('.', ','));
+        if (localResult.vatRate) setVatRate(localResult.vatRate.toString());
+        if (localResult.date) {
+          setDate(new Date(localResult.date));
         }
-        Alert.alert('Succes', `${imageUris.length} foto's succesvol verwerkt!`);
-      } else {
-        Alert.alert('Info', `Foto's zijn toegevoegd maar konden niet automatisch verwerkt worden. Vul de gegevens handmatig in.`);
+        Alert.alert('Succes', `${imageUris.length} foto's succesvol verwerkt met lokale OCR!`);
+        return;
       }
+      
+      // Als lokale OCR niet werkt, probeer ChatGPT API (als beschikbaar)
+      if (apiKey) {
+        console.log('Local OCR failed, trying ChatGPT API...');
+        const apiResult = await processReceiptImages(imageUris, apiKey);
+        
+        if (apiResult) {
+          setName(apiResult.name || '');
+          setAmount(apiResult.amount ? apiResult.amount.toString().replace('.', ',') : '');
+          if (apiResult.vatRate) setVatRate(apiResult.vatRate.toString());
+          if (apiResult.date) {
+            setDate(new Date(apiResult.date));
+          }
+          Alert.alert('Succes', `${imageUris.length} foto's succesvol verwerkt met ChatGPT API!`);
+          return;
+        }
+      }
+      
+      // Als beide methoden falen
+      Alert.alert('Info', `Foto's zijn toegevoegd maar konden niet automatisch verwerkt worden. Vul de gegevens handmatig in.`);
+      
     } catch (error) {
       console.error('Error processing receipts:', error);
       Alert.alert('Info', `Foto's zijn toegevoegd maar konden niet automatisch verwerkt worden. Vul de gegevens handmatig in.`);
@@ -471,7 +488,7 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
                 </View>
               )}
               
-              {imageUris.length > 0 && apiKey && (
+              {imageUris.length > 0 && (
                 <TouchableOpacity
                   style={[
                     styles.processButton,
@@ -488,7 +505,7 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
                   ) : (
                     <View style={styles.processingContainer}>
                       <Send size={16} color={Colors.secondary} />
-                      <Text style={styles.processButtonText}>Verstuur Foto's ({imageUris.length})</Text>
+                      <Text style={styles.processButtonText}>Verwerk Bonnen ({imageUris.length})</Text>
                     </View>
                   )}
                 </TouchableOpacity>

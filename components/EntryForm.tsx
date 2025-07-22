@@ -16,7 +16,7 @@ import {
 import { Calendar, Camera, X, Send, FileText, Zap } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
-import * as DocumentPicker from 'react-native-document-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { Image } from 'expo-image';
 import Colors from '@/constants/colors';
@@ -299,16 +299,17 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
   
   const pickPDF = async () => {
     try {
-      const result = await DocumentPicker.pickSingle({
-        type: [DocumentPicker.types.pdf],
-        copyTo: 'cachesDirectory',
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/pdf',
+        copyToCacheDirectory: true,
       });
       
-      if (result.fileCopyUri) {
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
         setIsProcessing(true);
         
         try {
-          const pdfResult = await processPDF(result.fileCopyUri, apiKey || undefined, true);
+          const pdfResult = await processPDF(asset.uri, apiKey || undefined, true);
           
           if (pdfResult) {
             setName(pdfResult.name || '');
@@ -334,10 +335,8 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
         }
       }
     } catch (error) {
-      if (!DocumentPicker.isCancel(error)) {
-        console.error('Error picking PDF:', error);
-        Alert.alert('Fout', 'Kon PDF niet selecteren');
-      }
+      console.error('Error picking PDF:', error);
+      Alert.alert('Fout', 'Kon PDF niet selecteren');
     }
   };
   

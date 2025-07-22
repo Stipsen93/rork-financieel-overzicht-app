@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
+import { createWorker } from 'tesseract.js';
 
 interface ReceiptData {
   name?: string;
@@ -45,20 +46,54 @@ const VAT_PATTERNS = [
   { rate: 0, keywords: ['0%', '0 %', 'btw 0', 'vrijgesteld', 'geen btw'] }
 ];
 
-// Simple OCR simulation using pattern matching
+// Real OCR engine using Tesseract.js
 class LocalOCREngine {
-  private extractTextFromImage(base64Image: string): Promise<string> {
-    // This is a simplified simulation of OCR
-    // In a real implementation, you would use a library like Tesseract.js
-    // For now, we'll return a mock text that represents common receipt patterns
-    return new Promise((resolve) => {
-      // Simulate processing time
-      setTimeout(() => {
-        // This would normally be the actual OCR result
-        // For demonstration, we'll return empty string to indicate OCR not available
-        resolve('');
-      }, 1000);
-    });
+  private worker: any = null;
+  private isInitialized = false;
+
+  private async initializeWorker(): Promise<void> {
+    if (this.isInitialized && this.worker) {
+      return;
+    }
+
+    try {
+      console.log('Initializing OCR worker...');
+      this.worker = await createWorker('nld+eng'); // Dutch and English
+      this.isInitialized = true;
+      console.log('OCR worker initialized successfully');
+    } catch (error) {
+      console.error('Failed to initialize OCR worker:', error);
+      throw new Error('OCR initialisatie mislukt');
+    }
+  }
+
+  private async extractTextFromImage(imageData: string): Promise<string> {
+    try {
+      await this.initializeWorker();
+      
+      console.log('Starting OCR text extraction...');
+      const { data: { text } } = await this.worker.recognize(imageData);
+      console.log('OCR extraction completed');
+      console.log('Extracted text:', text.substring(0, 200) + '...');
+      
+      return text;
+    } catch (error) {
+      console.error('OCR text extraction failed:', error);
+      throw new Error('Tekst extractie mislukt');
+    }
+  }
+
+  async cleanup(): Promise<void> {
+    if (this.worker) {
+      try {
+        await this.worker.terminate();
+        this.worker = null;
+        this.isInitialized = false;
+        console.log('OCR worker terminated');
+      } catch (error) {
+        console.error('Error terminating OCR worker:', error);
+      }
+    }
   }
 
   private extractCompanyName(text: string): string | undefined {
@@ -207,11 +242,25 @@ class LocalOCREngine {
       .join(' ');
   }
 
+  async processImage(imageData: string): Promise<ReceiptData> {
+    try {
+      const text = await this.extractTextFromImage(imageData);
+      return this.processText(text);
+    } catch (error) {
+      console.error('Error processing image:', error);
+      throw error;
+    }
+  }
+
   async processText(text: string): Promise<ReceiptData> {
+    console.log('Processing extracted text for receipt data...');
+    
     const name = this.extractCompanyName(text);
     const amount = this.extractAmount(text);
     const date = this.extractDate(text);
     const vatRate = this.extractVATRate(text);
+
+    console.log('Extracted data:', { name, amount, date, vatRate });
 
     return {
       name: name || 'Onbekend',
@@ -245,34 +294,43 @@ export class LocalAIService {
 
   async processReceiptImages(imageUris: string[]): Promise<ProcessingResult> {
     try {
-      console.log(`Processing ${imageUris.length} images locally...`);
+      console.log(`Processing ${imageUris.length} images with OCR...`);
       
-      let combinedText = '';
-      let processedCount = 0;
-
-      for (const uri of imageUris) {
-        try {
-          const base64 = await this.fileToBase64(uri);
-          if (base64) {
-            // In a real implementation, this would use actual OCR
-            // For now, we'll use pattern-based analysis on filename and mock data
-            const mockText = await this.generateMockReceiptText(uri);
-            combinedText += mockText + '\n';
-            processedCount++;
-          }
-        } catch (error) {
-          console.error(`Error processing image ${uri}:`, error);
-        }
-      }
-
-      if (processedCount === 0) {
+      if (imageUris.length === 0) {
         return {
           success: false,
-          error: 'Geen afbeeldingen konden worden verwerkt'
+          error: 'Geen afbeeldingen om te verwerken'
         };
       }
 
-      const extractedData = await this.ocrEngine.processText(combinedText);
+      // Process the first image (for multiple images, we could combine results)
+      const uri = imageUris[0];
+      console.log('Processing image:', uri);
+      
+      let imageData: string;
+      
+      if (Platform.OS === 'web') {
+        // For web, we can use the URI directly if it's a blob URL
+        // or convert it to base64 if needed
+        if (uri.startsWith('blob:') || uri.startsWith('data:')) {
+          imageData = uri;
+        } else {
+          const base64 = await this.fileToBase64(uri);
+          if (!base64) {
+            throw new Error('Kon afbeelding niet converteren');
+          }
+          imageData = base64;
+        }
+      } else {
+        // For mobile, convert to base64
+        const base64 = await this.fileToBase64(uri);
+        if (!base64) {
+          throw new Error('Kon afbeelding niet converteren');
+        }
+        imageData = base64;
+      }
+
+      const extractedData = await this.ocrEngine.processImage(imageData);
       
       return {
         success: true,
@@ -280,28 +338,49 @@ export class LocalAIService {
       };
 
     } catch (error) {
-      console.error('Error in local AI processing:', error);
+      console.error('Error in OCR processing:', error);
+      
+      // Cleanup OCR worker on error
+      try {
+        await this.ocrEngine.cleanup();
+      } catch (cleanupError) {
+        console.error('Error cleaning up OCR worker:', cleanupError);
+      }
+      
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Onbekende fout bij lokale verwerking'
+        error: error instanceof Error ? error.message : 'Onbekende fout bij OCR verwerking'
       };
     }
   }
 
   async processPDF(pdfUri: string): Promise<ProcessingResult> {
     try {
-      console.log('Processing PDF locally...');
+      console.log('Processing PDF with OCR...');
       
-      const base64 = await this.fileToBase64(pdfUri);
-      if (!base64) {
-        return {
-          success: false,
-          error: 'Kon PDF niet lezen'
-        };
+      // For PDFs, we'll use OCR on the PDF pages
+      // Tesseract.js can handle PDF files directly
+      let pdfData: string;
+      
+      if (Platform.OS === 'web') {
+        if (pdfUri.startsWith('blob:') || pdfUri.startsWith('data:')) {
+          pdfData = pdfUri;
+        } else {
+          const base64 = await this.fileToBase64(pdfUri);
+          if (!base64) {
+            throw new Error('Kon PDF niet converteren');
+          }
+          pdfData = base64;
+        }
+      } else {
+        const base64 = await this.fileToBase64(pdfUri);
+        if (!base64) {
+          throw new Error('Kon PDF niet converteren');
+        }
+        pdfData = base64;
       }
 
-      const text = await this.pdfProcessor.extractTextFromPDF(base64);
-      const extractedData = await this.ocrEngine.processText(text);
+      const extractedData = await this.ocrEngine.processImage(pdfData);
       
       return {
         success: true,
@@ -309,10 +388,18 @@ export class LocalAIService {
       };
 
     } catch (error) {
-      console.error('Error processing PDF:', error);
+      console.error('Error processing PDF with OCR:', error);
+      
+      // Cleanup OCR worker on error
+      try {
+        await this.ocrEngine.cleanup();
+      } catch (cleanupError) {
+        console.error('Error cleaning up OCR worker:', cleanupError);
+      }
+      
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Onbekende fout bij PDF verwerking'
+        error: error instanceof Error ? error.message : 'Onbekende fout bij PDF OCR verwerking'
       };
     }
   }
@@ -359,77 +446,12 @@ export class LocalAIService {
     }
   }
 
-  private async generateMockReceiptText(uri: string): Promise<string> {
-    // This generates mock receipt text for demonstration
-    // In a real implementation, this would be replaced with actual OCR
-    
-    // Generate more realistic random data based on common patterns
-    const companies = [
-      'Albert Heijn', 'Jumbo', 'Lidl', 'Aldi', 'Plus', 'Coop', 'Spar',
-      'Action', 'Hema', 'Blokker', 'Kruidvat', 'Etos', 'DA',
-      'MediaMarkt', 'Coolblue', 'Shell', 'BP', 'Esso', 'Total',
-      'McDonald\'s', 'Burger King', 'KFC', 'Subway', 'Domino\'s',
-      'IKEA', 'Gamma', 'Karwei', 'Hornbach', 'Praxis',
-      'Restaurant De Gouden Leeuw', 'Café Central', 'Hotel Van der Valk'
-    ];
-    
-    const items = [
-      { name: 'Brood', price: [1.50, 3.50] },
-      { name: 'Melk', price: [1.00, 2.00] },
-      { name: 'Kaas', price: [3.00, 8.00] },
-      { name: 'Groenten', price: [2.00, 6.00] },
-      { name: 'Vlees', price: [5.00, 15.00] },
-      { name: 'Dranken', price: [1.50, 8.00] },
-      { name: 'Benzine', price: [40.00, 80.00] },
-      { name: 'Hoofdgerecht', price: [12.00, 25.00] },
-      { name: 'Dessert', price: [4.00, 8.00] },
-      { name: 'Koffie', price: [2.50, 4.50] },
-      { name: 'Boodschappen', price: [15.00, 45.00] },
-      { name: 'Gereedschap', price: [8.00, 35.00] }
-    ];
-    
-    // Generate random receipt
-    const company = companies[Math.floor(Math.random() * companies.length)];
-    const numItems = Math.floor(Math.random() * 3) + 1; // 1-3 items
-    const selectedItems = [];
-    let total = 0;
-    
-    for (let i = 0; i < numItems; i++) {
-      const item = items[Math.floor(Math.random() * items.length)];
-      const price = Math.random() * (item.price[1] - item.price[0]) + item.price[0];
-      const roundedPrice = Math.round(price * 100) / 100;
-      selectedItems.push({ name: item.name, price: roundedPrice });
-      total += roundedPrice;
+  async cleanup(): Promise<void> {
+    try {
+      await this.ocrEngine.cleanup();
+    } catch (error) {
+      console.error('Error cleaning up LocalAIService:', error);
     }
-    
-    total = Math.round(total * 100) / 100;
-    
-    // Generate random date within last 30 days
-    const today = new Date();
-    const daysAgo = Math.floor(Math.random() * 30);
-    const receiptDate = new Date(today.getTime() - (daysAgo * 24 * 60 * 60 * 1000));
-    
-    // Generate VAT rate (mostly 21%, sometimes 9% or 0%)
-    const vatRates = [21, 21, 21, 21, 9, 0]; // Weighted towards 21%
-    const vatRate = vatRates[Math.floor(Math.random() * vatRates.length)];
-    const vatAmount = Math.round((total * vatRate / (100 + vatRate)) * 100) / 100;
-    
-    // Build receipt text
-    let receiptText = `${company}\n`;
-    receiptText += `Kassakbon\n`;
-    receiptText += `Datum: ${receiptDate.toLocaleDateString('nl-NL')}\n\n`;
-    
-    selectedItems.forEach(item => {
-      receiptText += `${item.name} €${item.price.toFixed(2)}\n`;
-    });
-    
-    receiptText += `\nTotaal: €${total.toFixed(2)}\n`;
-    if (vatRate > 0) {
-      receiptText += `BTW ${vatRate}%: €${vatAmount.toFixed(2)}\n`;
-    }
-    receiptText += `\nBedankt voor uw bezoek!`;
-    
-    return receiptText;
   }
 }
 

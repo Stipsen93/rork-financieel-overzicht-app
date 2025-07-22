@@ -13,6 +13,7 @@ interface FinanceState {
   yearSelection: YearSelection;
   quarterSelection: QuarterSelection;
   apiKey: string | null;
+  useApi: boolean;
   backupFrequency: number;
   lastAutoBackup: string | null;
   showStartingCapital: boolean;
@@ -31,6 +32,7 @@ interface FinanceState {
   setYearSelection: (yearSelection: YearSelection) => void;
   setQuarterSelection: (quarterSelection: QuarterSelection) => void;
   setApiKey: (apiKey: string) => void;
+  setUseApi: (useApi: boolean) => void;
   setBackupFrequency: (frequency: number) => void;
   setLastAutoBackup: (date: string) => void;
   setStartingCapital: (amount: number) => void;
@@ -107,9 +109,10 @@ export const useFinanceStore = create<FinanceState>()(
         quarter: 5, // Default to "Heel jaar" (whole year)
       },
       apiKey: null,
+      useApi: false, // Default to not using API
       backupFrequency: 1, // Default to daily backups
       lastAutoBackup: null,
-      showStartingCapital: true, // Default to showing starting capital
+      showStartingCapital: false, // Default to not showing starting capital
       incomeDisplayMode: 'both', // Default to showing both columns
       
       addIncome: (income) => {
@@ -330,6 +333,10 @@ export const useFinanceStore = create<FinanceState>()(
       
       setApiKey: (apiKey) => {
         set({ apiKey });
+      },
+      
+      setUseApi: (useApi) => {
+        set({ useApi });
       },
       
       setBackupFrequency: (frequency) => {

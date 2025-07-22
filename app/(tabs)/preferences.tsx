@@ -8,7 +8,7 @@ import {
   Switch,
 } from 'react-native';
 import { Stack } from 'expo-router';
-import { Settings, DollarSign, Eye } from 'lucide-react-native';
+import { Settings, DollarSign, Eye, Key } from 'lucide-react-native';
 import { useFinanceStore } from '@/store/financeStore';
 import Colors from '@/constants/colors';
 
@@ -16,6 +16,8 @@ export default function PreferencesScreen() {
   const { 
     showStartingCapital, 
     setShowStartingCapital,
+    useApi,
+    setUseApi,
     incomeDisplayMode,
     setIncomeDisplayMode 
   } = useFinanceStore();
@@ -50,6 +52,28 @@ export default function PreferencesScreen() {
         <Text style={styles.subtitle}>
           Pas de app instellingen aan naar jouw voorkeur
         </Text>
+      </View>
+      
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>API Instellingen</Text>
+        
+        <View style={styles.preferenceItem}>
+          <View style={styles.preferenceContent}>
+            <View style={styles.preferenceHeader}>
+              <Key size={24} color={Colors.text} />
+              <Text style={styles.preferenceTitle}>API Gebruiken</Text>
+            </View>
+            <Text style={styles.preferenceDescription}>
+              Schakel het gebruik van ChatGPT API in voor het verwerken van bonnetjes en facturen
+            </Text>
+          </View>
+          <Switch
+            value={useApi}
+            onValueChange={setUseApi}
+            trackColor={{ false: Colors.border, true: Colors.primary }}
+            thumbColor={useApi ? Colors.primaryDark : Colors.lightText}
+          />
+        </View>
       </View>
       
       <View style={styles.section}>
@@ -132,6 +156,10 @@ export default function PreferencesScreen() {
         <Text style={styles.infoText}>
           Hier kun je verschillende app instellingen aanpassen om de app naar jouw wensen te configureren. 
           Deze instellingen worden automatisch opgeslagen en blijven behouden tussen app sessies.
+          {"\n\n"}
+          <Text style={styles.infoNote}>
+            Let op: API gebruik vereist een geldige ChatGPT API sleutel die je kunt instellen in het profiel.
+          </Text>
         </Text>
       </View>
     </ScrollView>
@@ -272,5 +300,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.lightText,
     lineHeight: 20,
+  },
+  infoNote: {
+    fontStyle: 'italic',
+    color: Colors.text,
+    fontWeight: '500',
   },
 });

@@ -9,14 +9,15 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Stack } from 'expo-router';
-import { Save, Download, Clock, CheckCircle } from 'lucide-react-native';
+import { Save, Download, Clock, CheckCircle, Share, Upload } from 'lucide-react-native';
 import { useFinanceStore } from '@/store/financeStore';
 import Colors from '@/constants/colors';
-import { createBackup, restoreBackup, getLastBackupDate } from '@/utils/backupService';
+import { createBackup, restoreBackup, getLastBackupDate, shareBackup, importBackup } from '@/utils/backupService';
 
 export default function BackupScreen() {
   const [isCreatingBackup, setIsCreatingBackup] = useState(false);
   const [isRestoringBackup, setIsRestoringBackup] = useState(false);
+  const [isSharingBackup, setIsSharingBackup] = useState(false);
   const [lastBackupDate, setLastBackupDate] = useState<Date | null>(null);
   const { 
     incomes, 
@@ -110,6 +111,27 @@ export default function BackupScreen() {
       Alert.alert('Fout', 'Kon back-up niet herstellen. Probeer het opnieuw.');
     } finally {
       setIsRestoringBackup(false);
+    }
+  };
+  
+  const handleShareBackup = async () => {
+    setIsSharingBackup(true);
+    
+    try {
+      const success = await shareBackup();
+      
+      if (success) {
+        Alert.alert(
+          'Backup Gedeeld',
+          'Je backup bestand is succesvol gedeeld. Je kunt dit bestand gebruiken om je gegevens op een ander apparaat te herstellen.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('Error sharing backup:', error);
+      Alert.alert('Fout', 'Kon backup niet delen. Probeer het opnieuw.');
+    } finally {
+      setIsSharingBackup(false);
     }
   };
   
@@ -244,6 +266,29 @@ export default function BackupScreen() {
         </TouchableOpacity>
         
         {lastBackupDate && (
+          <TouchableOpacity
+            style={[
+              styles.shareButton,
+              isSharingBackup && styles.shareButtonDisabled
+            ]}
+            onPress={handleShareBackup}
+            disabled={isSharingBackup}
+          >
+            {isSharingBackup ? (
+              <View style={styles.buttonContent}>
+                <ActivityIndicator size="small" color={Colors.secondary} />
+                <Text style={styles.shareButtonText}>Delen...</Text>
+              </View>
+            ) : (
+              <View style={styles.buttonContent}>
+                <Share size={20} color={Colors.secondary} />
+                <Text style={styles.shareButtonText}>Back-up Delen</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        )}
+        
+        {lastBackupDate && (
           <View style={styles.lastBackupContainer}>
             <CheckCircle size={16} color={Colors.success} />
             <Text style={styles.lastBackupText}>
@@ -287,12 +332,13 @@ export default function BackupScreen() {
         <Text style={styles.infoTitle}>Wat wordt er opgeslagen?</Text>
         <Text style={styles.infoText}>
           • Alle inkomen en uitgaven posten{'\n'}
-          • Bijbehorende foto's en notities{'\n'}
+          • Bijbehorende foto&apos;s en notities{'\n'}
           • BTW berekeningen{'\n'}
           • Datum en tijd informatie{'\n'}
           {'\n'}
           <Text style={styles.infoNote}>
-            Back-ups worden lokaal op je apparaat opgeslagen en bevatten geen API sleutels of andere gevoelige instellingen.
+            Back-ups worden lokaal op je apparaat opgeslagen en bevatten geen API sleutels of andere gevoelige instellingen. 
+            Je kunt back-ups delen om je administratie op meerdere apparaten bij te houden.
           </Text>
         </Text>
       </View>
@@ -527,5 +573,26 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     color: Colors.text,
     fontWeight: '500',
+  },
+  shareButton: {
+    backgroundColor: Colors.primary,
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    marginTop: 12,
+  },
+  shareButtonDisabled: {
+    opacity: 0.7,
+  },
+  shareButtonText: {
+    color: Colors.secondary,
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 8,
   },
 });

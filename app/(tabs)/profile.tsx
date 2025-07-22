@@ -13,7 +13,7 @@ import { useFinanceStore } from '@/store/financeStore';
 import Colors from '@/constants/colors';
 
 export default function ProfileScreen() {
-  const { apiKey, setApiKey } = useFinanceStore();
+  const { apiKey, setApiKey, useApi } = useFinanceStore();
   const [inputApiKey, setInputApiKey] = useState(apiKey || '');
   
   const handleSaveApiKey = () => {
@@ -64,7 +64,10 @@ export default function ProfileScreen() {
           <View style={styles.statusContainer}>
             <Text style={styles.statusText}>✓ ChatGPT API sleutel is ingesteld</Text>
             <Text style={styles.statusDescription}>
-              Je kunt nu foto's van bonnen, facturen en bankafschriften scannen om automatisch gegevens in te vullen.
+              {useApi 
+                ? 'Je kunt nu foto\'s van bonnen, facturen en bankafschriften scannen om automatisch gegevens in te vullen.' 
+                : 'API is uitgeschakeld. Schakel het in via Voorkeuren om de scan functionaliteit te gebruiken.'
+              }
             </Text>
           </View>
         )}

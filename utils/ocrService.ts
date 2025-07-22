@@ -1,7 +1,6 @@
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import { callChatGPTAPI } from './apiService';
-import Tesseract from 'tesseract.js';
 
 interface ReceiptData {
   name?: string;
@@ -19,7 +18,8 @@ type CoreMessage =
   | { role: 'user'; content: string | Array<ContentPart>; }
   | { role: 'assistant'; content: string | Array<ContentPart>; };
 
-// Lokale OCR functie zonder externe API
+// Lokale OCR functie - vereenvoudigd zonder Tesseract
+// Tesseract.js werkt niet goed op React Native mobile devices
 export const processReceiptImagesLocal = async (
   imageUris: string[]
 ): Promise<ReceiptData | null> => {
@@ -28,200 +28,19 @@ export const processReceiptImagesLocal = async (
       throw new Error('Geen afbeeldingen om te verwerken');
     }
 
-    console.log(`Processing ${imageUris.length} receipt images locally...`);
-
-    // Extract text from all images using Tesseract
-    const extractedTexts = await Promise.all(
-      imageUris.map(async (uri, index) => {
-        console.log(`Extracting text from image ${index + 1}/${imageUris.length}...`);
-        
-        try {
-          const { data: { text } } = await Tesseract.recognize(
-            uri,
-            'nld+eng', // Dutch and English
-            {
-              logger: m => console.log(`OCR Progress: ${m.status} ${m.progress}%`)
-            }
-          );
-          
-          console.log(`Extracted text from image ${index + 1}:`, text.substring(0, 200) + '...');
-          return text;
-        } catch (ocrError) {
-          console.error(`OCR failed for image ${index + 1}:`, ocrError);
-          return '';
-        }
-      })
-    );
-
-    // Combine all extracted text
-    const combinedText = extractedTexts.join('\n\n--- VOLGENDE BON ---\n\n');
+    console.log(`Local OCR not available on mobile - ${imageUris.length} images will be stored without processing`);
     
-    if (!combinedText.trim()) {
-      throw new Error('Geen tekst gevonden in de afbeeldingen. Zorg voor duidelijke, goed verlichte foto\'s.');
-    }
-
-    console.log('Combined extracted text:', combinedText.substring(0, 500) + '...');
-
-    // Parse the extracted text locally
-    const receiptData = parseReceiptText(combinedText);
-    
-    if (!receiptData.name && !receiptData.amount) {
-      throw new Error('Kon geen bruikbare informatie vinden in de bon. Probeer een duidelijkere foto.');
-    }
-
-    console.log('Successfully parsed receipt data locally:', receiptData);
-    return receiptData;
+    // Return null to indicate local processing failed
+    // This will trigger the fallback to ChatGPT API or manual entry
+    return null;
     
   } catch (error) {
-    console.error('Error processing receipt images locally:', error);
-    throw error;
+    console.error('Error in local OCR processing:', error);
+    return null;
   }
 };
 
-// Lokale tekst parsing functie
-const parseReceiptText = (text: string): ReceiptData => {
-  const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-  
-  let name = '';
-  let amount = 0;
-  let vatRate = 21; // Default BTW tarief
-  let date = '';
 
-  // Zoek naar bedrijfsnaam (meestal bovenaan)
-  const businessNamePatterns = [
-    /^[A-Z][A-Za-z\s&.,-]{3,30}$/,
-    /^[A-Z][A-Za-z\s]{2,}\s+(B\.?V\.?|N\.?V\.?|VOF|BV|NV)$/i,
-    /^[A-Z][A-Za-z\s]+\s+(Supermarkt|Restaurant|Café|Store|Shop)$/i
-  ];
-  
-  for (let i = 0; i < Math.min(10, lines.length); i++) {
-    const line = lines[i];
-    if (businessNamePatterns.some(pattern => pattern.test(line))) {
-      name = line;
-      break;
-    }
-  }
-
-  // Als geen bedrijfsnaam gevonden, neem de eerste niet-lege regel
-  if (!name && lines.length > 0) {
-    name = lines[0].replace(/[^A-Za-z\s&.,-]/g, '').trim();
-  }
-
-  // Zoek naar totaalbedrag
-  const amountPatterns = [
-    /(?:totaal|total|subtotal|bedrag|te\s+betalen|amount)\s*:?\s*€?\s*([0-9]+[.,][0-9]{2})/i,
-    /€\s*([0-9]+[.,][0-9]{2})\s*(?:totaal|total|bedrag)?/i,
-    /([0-9]+[.,][0-9]{2})\s*€/,
-    /([0-9]+[.,][0-9]{2})/
-  ];
-
-  const amounts: number[] = [];
-  
-  for (const line of lines) {
-    for (const pattern of amountPatterns) {
-      const match = line.match(pattern);
-      if (match) {
-        const amountStr = match[1].replace(',', '.');
-        const parsedAmount = parseFloat(amountStr);
-        if (!isNaN(parsedAmount) && parsedAmount > 0) {
-          amounts.push(parsedAmount);
-        }
-      }
-    }
-  }
-
-  // Neem het hoogste bedrag als totaal
-  if (amounts.length > 0) {
-    amount = Math.max(...amounts);
-  }
-
-  // Zoek naar datum
-  const datePatterns = [
-    /([0-9]{1,2}[-\/][0-9]{1,2}[-\/][0-9]{2,4})/,
-    /([0-9]{1,2}\s+[a-zA-Z]{3,}\s+[0-9]{2,4})/,
-    /([0-9]{2,4}[-\/][0-9]{1,2}[-\/][0-9]{1,2})/
-  ];
-
-  for (const line of lines) {
-    for (const pattern of datePatterns) {
-      const match = line.match(pattern);
-      if (match) {
-        date = formatDate(match[1]);
-        if (date) break;
-      }
-    }
-    if (date) break;
-  }
-
-  // Als geen datum gevonden, gebruik vandaag
-  if (!date) {
-    date = new Date().toISOString().split('T')[0];
-  }
-
-  // Bepaal BTW tarief op basis van tekst
-  const lowVatKeywords = ['boek', 'medicijn', 'voedsel', 'groente', 'fruit', 'brood'];
-  const textLower = text.toLowerCase();
-  
-  if (lowVatKeywords.some(keyword => textLower.includes(keyword))) {
-    vatRate = 9;
-  } else if (textLower.includes('btw') || textLower.includes('vat')) {
-    // Probeer BTW percentage te vinden
-    const vatMatch = text.match(/([0-9]+)%?\s*(?:btw|vat)/i);
-    if (vatMatch) {
-      const parsedVat = parseInt(vatMatch[1]);
-      if ([0, 9, 21].includes(parsedVat)) {
-        vatRate = parsedVat;
-      }
-    }
-  }
-
-  return {
-    name: name || 'Onbekende leverancier',
-    amount,
-    vatRate,
-    date
-  };
-};
-
-// Hulpfunctie voor datum formatting
-const formatDate = (dateStr: string): string => {
-  try {
-    // Probeer verschillende datum formaten
-    const formats = [
-      /^([0-9]{1,2})[-\/]([0-9]{1,2})[-\/]([0-9]{2,4})$/, // DD/MM/YYYY of DD-MM-YYYY
-      /^([0-9]{2,4})[-\/]([0-9]{1,2})[-\/]([0-9]{1,2})$/, // YYYY/MM/DD of YYYY-MM-DD
-    ];
-
-    for (const format of formats) {
-      const match = dateStr.match(format);
-      if (match) {
-        let day, month, year;
-        
-        if (match[3].length === 4) {
-          // DD/MM/YYYY format
-          day = parseInt(match[1]);
-          month = parseInt(match[2]);
-          year = parseInt(match[3]);
-        } else {
-          // YYYY/MM/DD format
-          year = parseInt(match[1]);
-          month = parseInt(match[2]);
-          day = parseInt(match[3]);
-        }
-
-        // Valideer datum
-        if (day >= 1 && day <= 31 && month >= 1 && month <= 12 && year >= 2020 && year <= 2030) {
-          const date = new Date(year, month - 1, day);
-          return date.toISOString().split('T')[0];
-        }
-      }
-    }
-    
-    return '';
-  } catch {
-    return '';
-  }
-};
 
 export const processReceiptImages = async (
   imageUris: string[],

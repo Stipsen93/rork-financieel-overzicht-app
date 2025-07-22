@@ -21,7 +21,7 @@ import { Image } from 'expo-image';
 import Colors from '@/constants/colors';
 import { FinanceEntry } from '@/types/finance';
 import { useFinanceStore } from '@/store/financeStore';
-import { processReceiptImages, processReceiptImagesLocal } from '@/utils/ocrService';
+import { processReceiptImages } from '@/utils/ocrService';
 
 interface EntryFormProps {
   type: 'income' | 'expense';
@@ -250,24 +250,9 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
     setIsProcessing(true);
     
     try {
-      // Probeer eerst lokale OCR
-      console.log('Trying local OCR processing...');
-      const localResult = await processReceiptImagesLocal(imageUris);
-      
-      if (localResult && localResult.name && localResult.amount) {
-        setName(localResult.name);
-        setAmount(localResult.amount.toString().replace('.', ','));
-        if (localResult.vatRate) setVatRate(localResult.vatRate.toString());
-        if (localResult.date) {
-          setDate(new Date(localResult.date));
-        }
-        Alert.alert('Succes', `${imageUris.length} foto's succesvol verwerkt met lokale OCR!`);
-        return;
-      }
-      
-      // Als lokale OCR niet werkt, probeer ChatGPT API (als beschikbaar)
+      // Probeer ChatGPT API als beschikbaar
       if (apiKey) {
-        console.log('Local OCR failed, trying ChatGPT API...');
+        console.log('Processing with ChatGPT API...');
         const apiResult = await processReceiptImages(imageUris, apiKey);
         
         if (apiResult) {
@@ -277,17 +262,41 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
           if (apiResult.date) {
             setDate(new Date(apiResult.date));
           }
-          Alert.alert('Succes', `${imageUris.length} foto's succesvol verwerkt met ChatGPT API!`);
+          Alert.alert('Succes', `${imageUris.length} foto${imageUris.length > 1 ? "'s" : ''} succesvol verwerkt!`);
           return;
         }
+      } else {
+        // Geen API key beschikbaar
+        Alert.alert(
+          'API Sleutel Vereist', 
+          'Om bonnen automatisch te verwerken heb je een ChatGPT API sleutel nodig. Ga naar het menu > API Sleutel om deze in te stellen. De foto\'s zijn wel opgeslagen bij de post.',
+          [
+            { text: 'OK', style: 'default' }
+          ]
+        );
+        return;
       }
       
-      // Als beide methoden falen
-      Alert.alert('Info', `Foto's zijn toegevoegd maar konden niet automatisch verwerkt worden. Vul de gegevens handmatig in.`);
+      // Als API verwerking faalt
+      Alert.alert(
+        'Verwerking Mislukt', 
+        'De bonnen konden niet automatisch verwerkt worden. De foto\'s zijn wel opgeslagen bij de post. Vul de gegevens handmatig in.',
+        [
+          { text: 'OK', style: 'default' }
+        ]
+      );
       
     } catch (error) {
       console.error('Error processing receipts:', error);
-      Alert.alert('Info', `Foto's zijn toegevoegd maar konden niet automatisch verwerkt worden. Vul de gegevens handmatig in.`);
+      const errorMessage = error instanceof Error ? error.message : 'Onbekende fout';
+      
+      Alert.alert(
+        'Verwerking Mislukt', 
+        `Fout: ${errorMessage}\n\nDe foto\'s zijn wel opgeslagen bij de post. Vul de gegevens handmatig in.`,
+        [
+          { text: 'OK', style: 'default' }
+        ]
+      );
     } finally {
       setIsProcessing(false);
     }
@@ -458,13 +467,13 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
                 />
               )}
               
-              <Text style={styles.label}>Bonnen ({imageUris.length} foto's)</Text>
+              <Text style={styles.label}>Bonnen ({imageUris.length} foto&apos;s)</Text>
               <View style={styles.imageActions}>
                 <TouchableOpacity
                   style={styles.imageButton}
                   onPress={openCamera}
                 >
-                  <Text style={styles.imageButtonText}>Foto's Maken</Text>
+                  <Text style={styles.imageButtonText}>Foto&apos;s Maken</Text>
                 </TouchableOpacity>
                 
                 <TouchableOpacity
@@ -550,7 +559,7 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
                   >
                     <View style={styles.captureButtonInner} />
                   </TouchableOpacity>
-                  <Text style={styles.photoCount}>{imageUris.length} foto's</Text>
+                  <Text style={styles.photoCount}>{imageUris.length} foto&apos;s</Text>
                 </View>
                 
                 <TouchableOpacity

@@ -46,7 +46,7 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
   const [entryType, setEntryType] = useState<'income' | 'expense'>(type);
   
   const cameraRef = useRef<CameraView>(null);
-  const { addIncome, addExpense, updateIncome, updateExpense, apiKey, dateSelection, incomes, expenses } = useFinanceStore();
+  const { addIncome, addExpense, updateIncome, updateExpense, removeIncome, removeExpense, apiKey, dateSelection, incomes, expenses } = useFinanceStore();
   
   useEffect(() => {
     if (visible) {
@@ -148,11 +148,25 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
     };
     
     if (editEntry) {
-      // Update existing entry
-      if (entryType === 'income') {
-        updateIncome(editEntry.id, entryData);
+      // Check if the entry type has changed
+      const originalType = incomes.find(inc => inc.id === editEntry.id) ? 'income' : 'expense';
+      
+      if (originalType !== entryType) {
+        // Type changed - remove from original list and add to new list
+        if (originalType === 'income') {
+          removeIncome(editEntry.id);
+          addExpense(entryData);
+        } else {
+          removeExpense(editEntry.id);
+          addIncome(entryData);
+        }
       } else {
-        updateExpense(editEntry.id, entryData);
+        // Type unchanged - just update
+        if (entryType === 'income') {
+          updateIncome(editEntry.id, entryData);
+        } else {
+          updateExpense(editEntry.id, entryData);
+        }
       }
     } else {
       // Add new entry

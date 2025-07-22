@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, Platform, Alert } from 'react-native';
-import { Trash2, Paperclip, X, Download, Share } from 'lucide-react-native';
+import { Trash2, Paperclip, X, Download, Share, Edit3 } from 'lucide-react-native';
 import { Image } from 'expo-image';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
@@ -11,9 +11,10 @@ import { formatCurrency, formatDate } from '@/utils/finance';
 interface FinanceEntryItemProps {
   entry: FinanceEntry;
   onDelete: (id: string) => void;
+  onEdit: (entry: FinanceEntry) => void;
 }
 
-export default function FinanceEntryItem({ entry, onDelete }: FinanceEntryItemProps) {
+export default function FinanceEntryItem({ entry, onDelete, onEdit }: FinanceEntryItemProps) {
   const [showImageModal, setShowImageModal] = useState(false);
 
   const handleDownloadImage = async () => {
@@ -94,12 +95,20 @@ export default function FinanceEntryItem({ entry, onDelete }: FinanceEntryItemPr
           </View>
         </View>
         
-        <TouchableOpacity
-          style={styles.deleteButton}
-          onPress={() => onDelete(entry.id)}
-        >
-          <Trash2 size={18} color={Colors.danger} />
-        </TouchableOpacity>
+        <View style={styles.actionButtons}>
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={() => onEdit(entry)}
+          >
+            <Edit3 size={18} color={Colors.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={() => onDelete(entry.id)}
+          >
+            <Trash2 size={18} color={Colors.danger} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Image Modal */}
@@ -213,9 +222,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.lightText,
   },
+  actionButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  editButton: {
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
   deleteButton: {
     justifyContent: 'center',
-    paddingLeft: 16,
+    paddingLeft: 8,
   },
   modalOverlay: {
     flex: 1,

@@ -6,6 +6,7 @@ export interface FinanceEntry {
   vatAmount: number;
   date: string;
   imageUri?: string;
+  imageUris?: string[];
   notes?: string;
 }
 

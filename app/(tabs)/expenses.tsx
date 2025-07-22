@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useFinanceStore } from '@/store/financeStore';
+import { FinanceEntry } from '@/types/finance';
 import Colors from '@/constants/colors';
 import MonthYearPicker from '@/components/MonthYearPicker';
 import SummaryCard from '@/components/SummaryCard';
@@ -13,6 +14,7 @@ import { filterEntriesByMonth } from '@/utils/finance';
 export default function ExpensesScreen() {
   const [showForm, setShowForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [editEntry, setEditEntry] = useState<FinanceEntry | undefined>(undefined);
   const { expenses, dateSelection, setDateSelection, removeExpense } = useFinanceStore();
   
   const filteredExpenses = useMemo(
@@ -44,6 +46,16 @@ export default function ExpensesScreen() {
   
   const handleDateChange = (year: number, month: number) => {
     setDateSelection({ year, month });
+  };
+  
+  const handleEdit = (entry: FinanceEntry) => {
+    setEditEntry(entry);
+    setShowForm(true);
+  };
+  
+  const handleCloseForm = () => {
+    setShowForm(false);
+    setEditEntry(undefined);
   };
   
   return (
@@ -94,7 +106,8 @@ export default function ExpensesScreen() {
                 <FinanceEntryItem 
                   key={item.id} 
                   entry={item} 
-                  onDelete={removeExpense} 
+                  onDelete={removeExpense}
+                  onEdit={handleEdit}
                 />
               ))}
             </View>
@@ -107,7 +120,8 @@ export default function ExpensesScreen() {
       <EntryForm
         type="expense"
         visible={showForm}
-        onClose={() => setShowForm(false)}
+        onClose={handleCloseForm}
+        editEntry={editEntry}
       />
     </View>
   );

@@ -13,12 +13,13 @@ import {
   Alert,
   FlatList,
 } from 'react-native';
-import { Calendar, Camera, X, Send, Trash2 } from 'lucide-react-native';
+import { Calendar, Camera, X, Send } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { Image } from 'expo-image';
 import Colors from '@/constants/colors';
+import { FinanceEntry } from '@/types/finance';
 import { useFinanceStore } from '@/store/financeStore';
 import { processReceiptImages } from '@/utils/ocrService';
 
@@ -26,9 +27,10 @@ interface EntryFormProps {
   type: 'income' | 'expense';
   visible: boolean;
   onClose: () => void;
+  editEntry?: FinanceEntry;
 }
 
-export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
+export default function EntryForm({ type, visible, onClose, editEntry }: EntryFormProps) {
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [vatRate, setVatRate] = useState('21');
@@ -41,19 +43,31 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
   const [facing, setFacing] = useState<CameraType>('back');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
+  const [entryType, setEntryType] = useState<'income' | 'expense'>(type);
   
   const cameraRef = useRef<CameraView>(null);
-  const { addIncome, addExpense, apiKey, dateSelection, incomes, expenses } = useFinanceStore();
+  const { addIncome, addExpense, updateIncome, updateExpense, apiKey, dateSelection, incomes, expenses } = useFinanceStore();
   
   useEffect(() => {
     if (visible) {
-      // Initialize with selected month/year from store, but current day
-      const selectedDate = new Date(dateSelection.year, dateSelection.month - 1, new Date().getDate());
-      setDate(selectedDate);
+      if (editEntry) {
+        // Populate form with existing entry data
+        setName(editEntry.name);
+        setAmount(editEntry.amount.toString().replace('.', ','));
+        setVatRate(editEntry.vatRate.toString());
+        setDate(new Date(editEntry.date));
+        setImageUris(editEntry.imageUris || (editEntry.imageUri ? [editEntry.imageUri] : []));
+        setEntryType(incomes.find(inc => inc.id === editEntry.id) ? 'income' : 'expense');
+      } else {
+        // Initialize with selected month/year from store, but current day
+        const selectedDate = new Date(dateSelection.year, dateSelection.month - 1, new Date().getDate());
+        setDate(selectedDate);
+        setEntryType(type);
+      }
     } else {
       resetForm();
     }
-  }, [visible, dateSelection]);
+  }, [visible, dateSelection, editEntry, type, incomes]);
   
   const resetForm = () => {
     setName('');
@@ -65,10 +79,11 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
     setIsProcessing(false);
     setShowSuggestions(false);
     setFilteredSuggestions([]);
+    setEntryType(type);
   };
   
   const getUniqueSuggestions = () => {
-    const entries = type === 'income' ? incomes : expenses;
+    const entries = entryType === 'income' ? incomes : expenses;
     const uniqueNames = [...new Set(entries.map(entry => entry.name))];
     return uniqueNames.sort();
   };
@@ -95,7 +110,7 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
     setFilteredSuggestions([]);
     
     // Auto-fill other fields based on the most recent entry with this name
-    const entries = type === 'income' ? incomes : expenses;
+    const entries = entryType === 'income' ? incomes : expenses;
     const recentEntry = entries
       .filter(entry => entry.name === suggestion)
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
@@ -123,7 +138,7 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
       return;
     }
     
-    const entry = {
+    const entryData = {
       name,
       amount: parseFloat(amount.replace(',', '.')),
       vatRate: parseFloat(vatRate),
@@ -132,10 +147,20 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
       imageUris: imageUris.length > 0 ? imageUris : undefined,
     };
     
-    if (type === 'income') {
-      addIncome(entry);
+    if (editEntry) {
+      // Update existing entry
+      if (entryType === 'income') {
+        updateIncome(editEntry.id, entryData);
+      } else {
+        updateExpense(editEntry.id, entryData);
+      }
     } else {
-      addExpense(entry);
+      // Add new entry
+      if (entryType === 'income') {
+        addIncome(entryData);
+      } else {
+        addExpense(entryData);
+      }
     }
     
     onClose();
@@ -268,7 +293,7 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
           <View style={styles.modalContent}>
             <View style={styles.header}>
               <Text style={styles.title}>
-                {type === 'income' ? 'Inkomen Toevoegen' : 'Uitgave Toevoegen'}
+                {editEntry ? 'Post Bewerken' : (entryType === 'income' ? 'Inkomen Toevoegen' : 'Uitgave Toevoegen')}
               </Text>
               <TouchableOpacity onPress={onClose} style={styles.closeButton}>
                 <X size={24} color={Colors.text} />
@@ -280,6 +305,44 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
+              {/* Type Slider */}
+              <Text style={styles.label}>Type</Text>
+              <View style={styles.typeSliderContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.typeSliderButton,
+                    styles.typeSliderButtonLeft,
+                    entryType === 'expense' && styles.typeSliderButtonActive,
+                  ]}
+                  onPress={() => setEntryType('expense')}
+                >
+                  <Text
+                    style={[
+                      styles.typeSliderText,
+                      entryType === 'expense' && styles.typeSliderTextActive,
+                    ]}
+                  >
+                    Uitgave
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.typeSliderButton,
+                    styles.typeSliderButtonRight,
+                    entryType === 'income' && styles.typeSliderButtonActive,
+                  ]}
+                  onPress={() => setEntryType('income')}
+                >
+                  <Text
+                    style={[
+                      styles.typeSliderText,
+                      entryType === 'income' && styles.typeSliderTextActive,
+                    ]}
+                  >
+                    Inkomen
+                  </Text>
+                </TouchableOpacity>
+              </View>
               <Text style={styles.label}>Naam</Text>
               <View style={styles.nameInputContainer}>
                 <TextInput
@@ -420,11 +483,13 @@ export default function EntryForm({ type, visible, onClose }: EntryFormProps) {
               <TouchableOpacity
                 style={[
                   styles.submitButton,
-                  { backgroundColor: type === 'income' ? Colors.success : Colors.danger },
+                  { backgroundColor: entryType === 'income' ? Colors.success : Colors.danger },
                 ]}
                 onPress={handleSubmit}
               >
-                <Text style={styles.submitButtonText}>Opslaan</Text>
+                <Text style={styles.submitButtonText}>
+                  {editEntry ? 'Bijwerken' : 'Opslaan'}
+                </Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -720,5 +785,41 @@ const styles = StyleSheet.create({
   suggestionText: {
     fontSize: 16,
     color: Colors.text,
+  },
+  typeSliderContainer: {
+    flexDirection: 'row',
+    backgroundColor: Colors.card,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
+  typeSliderButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    backgroundColor: Colors.card,
+  },
+  typeSliderButtonLeft: {
+    borderTopLeftRadius: 8,
+    borderBottomLeftRadius: 8,
+  },
+  typeSliderButtonRight: {
+    borderTopRightRadius: 8,
+    borderBottomRightRadius: 8,
+  },
+  typeSliderButtonActive: {
+    backgroundColor: Colors.primary,
+  },
+  typeSliderText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: Colors.text,
+  },
+  typeSliderTextActive: {
+    color: Colors.secondary,
+    fontWeight: 'bold',
   },
 });

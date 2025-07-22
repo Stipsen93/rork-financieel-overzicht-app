@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { DollarSign } from 'lucide-react-native';
 import { useFinanceStore } from '@/store/financeStore';
+import { FinanceEntry } from '@/types/finance';
 import Colors from '@/constants/colors';
 import MonthYearPicker from '@/components/MonthYearPicker';
 import SummaryCard from '@/components/SummaryCard';
@@ -16,6 +17,7 @@ export default function IncomeScreen() {
   const [showForm, setShowForm] = useState(false);
   const [showStartingCapitalForm, setShowStartingCapitalForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [editEntry, setEditEntry] = useState<FinanceEntry | undefined>(undefined);
   const { 
     incomes, 
     dateSelection, 
@@ -54,6 +56,16 @@ export default function IncomeScreen() {
   
   const handleDateChange = (year: number, month: number) => {
     setDateSelection({ year, month });
+  };
+  
+  const handleEdit = (entry: FinanceEntry) => {
+    setEditEntry(entry);
+    setShowForm(true);
+  };
+  
+  const handleCloseForm = () => {
+    setShowForm(false);
+    setEditEntry(undefined);
   };
   
   return (
@@ -119,7 +131,8 @@ export default function IncomeScreen() {
                 <FinanceEntryItem 
                   key={item.id} 
                   entry={item} 
-                  onDelete={removeIncome} 
+                  onDelete={removeIncome}
+                  onEdit={handleEdit}
                 />
               ))}
             </View>
@@ -132,7 +145,8 @@ export default function IncomeScreen() {
       <EntryForm
         type="income"
         visible={showForm}
-        onClose={() => setShowForm(false)}
+        onClose={handleCloseForm}
+        editEntry={editEntry}
       />
       
       <StartingCapitalForm

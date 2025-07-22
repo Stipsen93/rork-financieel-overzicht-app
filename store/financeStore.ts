@@ -23,6 +23,8 @@ interface FinanceState {
   addExpense: (expense: Omit<FinanceEntry, 'id' | 'vatAmount'>) => void;
   addMultipleIncomes: (incomes: Omit<FinanceEntry, 'id' | 'vatAmount'>[]) => void;
   addMultipleExpenses: (expenses: Omit<FinanceEntry, 'id' | 'vatAmount'>[]) => void;
+  updateIncome: (id: string, income: Omit<FinanceEntry, 'id' | 'vatAmount'>) => void;
+  updateExpense: (id: string, expense: Omit<FinanceEntry, 'id' | 'vatAmount'>) => void;
   removeIncome: (id: string) => void;
   removeExpense: (id: string) => void;
   setDateSelection: (dateSelection: DateSelection) => void;
@@ -278,6 +280,28 @@ export const useFinanceStore = create<FinanceState>()(
             }
           );
         });
+      },
+      
+      updateIncome: (id, income) => {
+        const vatAmount = calculateVatAmount(income.amount, income.vatRate);
+        set((state) => ({
+          incomes: state.incomes.map((inc) => 
+            inc.id === id 
+              ? { ...income, id, vatAmount }
+              : inc
+          ),
+        }));
+      },
+      
+      updateExpense: (id, expense) => {
+        const vatAmount = calculateVatAmount(expense.amount, expense.vatRate);
+        set((state) => ({
+          expenses: state.expenses.map((exp) => 
+            exp.id === id 
+              ? { ...expense, id, vatAmount }
+              : exp
+          ),
+        }));
       },
       
       removeIncome: (id) => {

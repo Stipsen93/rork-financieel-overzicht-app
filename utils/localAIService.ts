@@ -427,13 +427,113 @@ export class LocalAIService {
     }
   }
 
+  private async compressImage(imageData: string, maxSizeKB: number = 500): Promise<string> {
+    try {
+      if (Platform.OS === 'web') {
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            if (!ctx) {
+              reject(new Error('Canvas context niet beschikbaar'));
+              return;
+            }
+            
+            // Calculate new dimensions to reduce file size
+            let { width, height } = img;
+            const maxDimension = 1200; // Max width or height
+            
+            if (width > maxDimension || height > maxDimension) {
+              if (width > height) {
+                height = (height * maxDimension) / width;
+                width = maxDimension;
+              } else {
+                width = (width * maxDimension) / height;
+                height = maxDimension;
+              }
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            
+            // Draw and compress
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            // Try different quality levels until we get under the size limit
+            let quality = 0.8;
+            let compressedData = canvas.toDataURL('image/jpeg', quality);
+            
+            // Estimate size (base64 is ~33% larger than binary)
+            let estimatedSizeKB = (compressedData.length * 0.75) / 1024;
+            
+            while (estimatedSizeKB > maxSizeKB && quality > 0.1) {
+              quality -= 0.1;
+              compressedData = canvas.toDataURL('image/jpeg', quality);
+              estimatedSizeKB = (compressedData.length * 0.75) / 1024;
+            }
+            
+            console.log(`Afbeelding gecomprimeerd: ${Math.round(estimatedSizeKB)}KB (kwaliteit: ${Math.round(quality * 100)}%)`);
+            resolve(compressedData);
+          };
+          
+          img.onerror = () => reject(new Error('Kon afbeelding niet laden voor compressie'));
+          img.src = imageData;
+        });
+      } else {
+        // For native, use expo-image-manipulator if available
+        try {
+          const ImageManipulator = await import('expo-image-manipulator');
+          
+          const result = await ImageManipulator.manipulateAsync(
+            imageData,
+            [
+              { resize: { width: 1200 } }, // Resize to max 1200px width
+            ],
+            {
+              compress: 0.7,
+              format: ImageManipulator.SaveFormat.JPEG,
+              base64: true,
+            }
+          );
+          
+          if (result.base64) {
+            const compressedData = `data:image/jpeg;base64,${result.base64}`;
+            const estimatedSizeKB = (compressedData.length * 0.75) / 1024;
+            console.log(`Afbeelding gecomprimeerd (native): ${Math.round(estimatedSizeKB)}KB`);
+            return compressedData;
+          }
+        } catch (manipulatorError) {
+          console.log('ImageManipulator niet beschikbaar, gebruik originele afbeelding');
+        }
+        
+        // Fallback: return original if compression fails
+        return imageData;
+      }
+    } catch (error) {
+      console.error('Fout bij compressie, gebruik originele afbeelding:', error);
+      return imageData;
+    }
+  }
+
   private async fileToBase64(uri: string): Promise<string | null> {
     try {
+      let imageData: string;
+      
       if (Platform.OS === 'web') {
         const response = await fetch(uri);
         const blob = await response.blob();
         
-        return new Promise((resolve, reject) => {
+        // Check file size
+        const fileSizeKB = blob.size / 1024;
+        console.log(`Originele bestandsgrootte: ${Math.round(fileSizeKB)}KB`);
+        
+        if (fileSizeKB > 2000) { // If larger than 2MB
+          throw new Error('Afbeelding is te groot voor Github API. Kies een kleinere afbeelding of comprimeer deze eerst.');
+        }
+        
+        imageData = await new Promise((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => resolve(reader.result as string);
           reader.onerror = reject;
@@ -442,15 +542,39 @@ export class LocalAIService {
       } else {
         // For native platforms, we need to use expo-file-system
         const FileSystem = await import('expo-file-system');
+        
+        // Check file size first
+        const fileInfo = await FileSystem.getInfoAsync(uri);
+        if (fileInfo.exists && fileInfo.size) {
+          const fileSizeKB = fileInfo.size / 1024;
+          console.log(`Originele bestandsgrootte: ${Math.round(fileSizeKB)}KB`);
+          
+          if (fileSizeKB > 2000) { // If larger than 2MB
+            throw new Error('Afbeelding is te groot voor Github API. Kies een kleinere afbeelding of comprimeer deze eerst.');
+          }
+        }
+        
         const base64 = await FileSystem.readAsStringAsync(uri, {
           encoding: FileSystem.EncodingType.Base64,
         });
         
         const mimeType = this.getMimeType(uri);
-        return `data:${mimeType};base64,${base64}`;
+        imageData = `data:${mimeType};base64,${base64}`;
       }
+      
+      // Compress if still too large for API
+      const estimatedSizeKB = (imageData.length * 0.75) / 1024;
+      if (estimatedSizeKB > 800) { // Compress if larger than 800KB
+        console.log('Afbeelding wordt gecomprimeerd voor API compatibiliteit...');
+        imageData = await this.compressImage(imageData, 500); // Target 500KB
+      }
+      
+      return imageData;
     } catch (error) {
       console.error('Error converting file to base64:', error);
+      if (error instanceof Error && error.message.includes('te groot')) {
+        throw error; // Re-throw size errors
+      }
       return null;
     }
   }

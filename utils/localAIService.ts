@@ -362,16 +362,74 @@ export class LocalAIService {
   private async generateMockReceiptText(uri: string): Promise<string> {
     // This generates mock receipt text for demonstration
     // In a real implementation, this would be replaced with actual OCR
-    const mockReceipts = [
-      `Albert Heijn\nKassakbon\nDatum: ${new Date().toLocaleDateString('nl-NL')}\nBrood 2.50\nMelk 1.25\nKaas 4.75\nTotaal: €8.50\nBTW 9%: €0.70\nBedankt voor uw bezoek!`,
-      `Jumbo Supermarkten\nBon\n${new Date().toLocaleDateString('nl-NL')}\nGroenten 3.20\nVlees 12.50\nDranken 5.30\nTotaal bedrag: €21.00\nBTW 21%: €3.64`,
-      `Shell Tankstation\nFactuur\nDatum: ${new Date().toLocaleDateString('nl-NL')}\nBenzine 45L\nBedrag: €67.50\nBTW 21%: €11.73\nTotaal: €67.50`,
-      `Restaurant De Gouden Leeuw\nRekening\n${new Date().toLocaleDateString('nl-NL')}\nHoofdgerecht 18.50\nDessert 6.50\nDranken 8.00\nTotaal: €33.00\nBTW 21%: €5.74`
+    
+    // Generate more realistic random data based on common patterns
+    const companies = [
+      'Albert Heijn', 'Jumbo', 'Lidl', 'Aldi', 'Plus', 'Coop', 'Spar',
+      'Action', 'Hema', 'Blokker', 'Kruidvat', 'Etos', 'DA',
+      'MediaMarkt', 'Coolblue', 'Shell', 'BP', 'Esso', 'Total',
+      'McDonald\'s', 'Burger King', 'KFC', 'Subway', 'Domino\'s',
+      'IKEA', 'Gamma', 'Karwei', 'Hornbach', 'Praxis',
+      'Restaurant De Gouden Leeuw', 'Café Central', 'Hotel Van der Valk'
     ];
-
-    // Return a random mock receipt for demonstration
-    const randomIndex = Math.floor(Math.random() * mockReceipts.length);
-    return mockReceipts[randomIndex];
+    
+    const items = [
+      { name: 'Brood', price: [1.50, 3.50] },
+      { name: 'Melk', price: [1.00, 2.00] },
+      { name: 'Kaas', price: [3.00, 8.00] },
+      { name: 'Groenten', price: [2.00, 6.00] },
+      { name: 'Vlees', price: [5.00, 15.00] },
+      { name: 'Dranken', price: [1.50, 8.00] },
+      { name: 'Benzine', price: [40.00, 80.00] },
+      { name: 'Hoofdgerecht', price: [12.00, 25.00] },
+      { name: 'Dessert', price: [4.00, 8.00] },
+      { name: 'Koffie', price: [2.50, 4.50] },
+      { name: 'Boodschappen', price: [15.00, 45.00] },
+      { name: 'Gereedschap', price: [8.00, 35.00] }
+    ];
+    
+    // Generate random receipt
+    const company = companies[Math.floor(Math.random() * companies.length)];
+    const numItems = Math.floor(Math.random() * 3) + 1; // 1-3 items
+    const selectedItems = [];
+    let total = 0;
+    
+    for (let i = 0; i < numItems; i++) {
+      const item = items[Math.floor(Math.random() * items.length)];
+      const price = Math.random() * (item.price[1] - item.price[0]) + item.price[0];
+      const roundedPrice = Math.round(price * 100) / 100;
+      selectedItems.push({ name: item.name, price: roundedPrice });
+      total += roundedPrice;
+    }
+    
+    total = Math.round(total * 100) / 100;
+    
+    // Generate random date within last 30 days
+    const today = new Date();
+    const daysAgo = Math.floor(Math.random() * 30);
+    const receiptDate = new Date(today.getTime() - (daysAgo * 24 * 60 * 60 * 1000));
+    
+    // Generate VAT rate (mostly 21%, sometimes 9% or 0%)
+    const vatRates = [21, 21, 21, 21, 9, 0]; // Weighted towards 21%
+    const vatRate = vatRates[Math.floor(Math.random() * vatRates.length)];
+    const vatAmount = Math.round((total * vatRate / (100 + vatRate)) * 100) / 100;
+    
+    // Build receipt text
+    let receiptText = `${company}\n`;
+    receiptText += `Kassakbon\n`;
+    receiptText += `Datum: ${receiptDate.toLocaleDateString('nl-NL')}\n\n`;
+    
+    selectedItems.forEach(item => {
+      receiptText += `${item.name} €${item.price.toFixed(2)}\n`;
+    });
+    
+    receiptText += `\nTotaal: €${total.toFixed(2)}\n`;
+    if (vatRate > 0) {
+      receiptText += `BTW ${vatRate}%: €${vatAmount.toFixed(2)}\n`;
+    }
+    receiptText += `\nBedankt voor uw bezoek!`;
+    
+    return receiptText;
   }
 }
 

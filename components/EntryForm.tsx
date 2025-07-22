@@ -48,7 +48,7 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
   const [entryType, setEntryType] = useState<'income' | 'expense'>(type);
   
   const cameraRef = useRef<CameraView>(null);
-  const { addIncome, addExpense, updateIncome, updateExpense, removeIncome, removeExpense, apiKey, dateSelection, incomes, expenses } = useFinanceStore();
+  const { addIncome, addExpense, updateIncome, updateExpense, removeIncome, removeExpense, apiKey, useApi, dateSelection, incomes, expenses } = useFinanceStore();
   
   useEffect(() => {
     if (visible) {
@@ -253,8 +253,10 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
     setIsProcessing(true);
     
     try {
-      console.log(`Processing with ${useLocalAI ? 'Local AI' : 'ChatGPT API'}...`);
-      const result = await processReceiptImages(imageUris, apiKey || undefined, useLocalAI);
+      // If API is disabled in settings, always use local AI
+      const shouldUseLocalAI = !useApi || useLocalAI;
+      console.log(`Processing with ${shouldUseLocalAI ? 'Local AI' : 'ChatGPT API'}...`);
+      const result = await processReceiptImages(imageUris, apiKey || undefined, shouldUseLocalAI);
       
       if (result) {
         setName(result.name || '');
@@ -264,7 +266,7 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
           setDate(new Date(result.date));
         }
         
-        const processingMethod = useLocalAI ? 'Lokale AI' : 'ChatGPT API';
+        const processingMethod = (!useApi || useLocalAI) ? 'Lokale AI' : 'ChatGPT API';
         Alert.alert(
           'Succes', 
           `${imageUris.length} foto${imageUris.length > 1 ? "'s" : ''} succesvol verwerkt met ${processingMethod}!`
@@ -531,45 +533,47 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
                 </TouchableOpacity>
               </View>
               
-              {/* AI Processing Toggle */}
-              <View style={styles.aiToggleContainer}>
-                <Text style={styles.aiToggleLabel}>Verwerking:</Text>
-                <View style={styles.aiToggleButtons}>
-                  <TouchableOpacity
-                    style={[
-                      styles.aiToggleButton,
-                      useLocalAI && styles.aiToggleButtonActive,
-                    ]}
-                    onPress={() => setUseLocalAI(true)}
-                  >
-                    <Zap size={14} color={useLocalAI ? Colors.secondary : Colors.text} />
-                    <Text
+              {/* AI Processing Toggle - Only show if API is enabled in settings */}
+              {useApi && (
+                <View style={styles.aiToggleContainer}>
+                  <Text style={styles.aiToggleLabel}>Verwerking:</Text>
+                  <View style={styles.aiToggleButtons}>
+                    <TouchableOpacity
                       style={[
-                        styles.aiToggleText,
-                        useLocalAI && styles.aiToggleTextActive,
+                        styles.aiToggleButton,
+                        useLocalAI && styles.aiToggleButtonActive,
                       ]}
+                      onPress={() => setUseLocalAI(true)}
                     >
-                      Lokale AI
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.aiToggleButton,
-                      !useLocalAI && styles.aiToggleButtonActive,
-                    ]}
-                    onPress={() => setUseLocalAI(false)}
-                  >
-                    <Text
+                      <Zap size={14} color={useLocalAI ? Colors.secondary : Colors.text} />
+                      <Text
+                        style={[
+                          styles.aiToggleText,
+                          useLocalAI && styles.aiToggleTextActive,
+                        ]}
+                      >
+                        Lokale AI
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
                       style={[
-                        styles.aiToggleText,
-                        !useLocalAI && styles.aiToggleTextActive,
+                        styles.aiToggleButton,
+                        !useLocalAI && styles.aiToggleButtonActive,
                       ]}
+                      onPress={() => setUseLocalAI(false)}
                     >
-                      ChatGPT API
-                    </Text>
-                  </TouchableOpacity>
+                      <Text
+                        style={[
+                          styles.aiToggleText,
+                          !useLocalAI && styles.aiToggleTextActive,
+                        ]}
+                      >
+                        ChatGPT API
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </View>
+              )}
               
               {imageUris.length > 0 && (
                 <View style={styles.imagesContainer}>

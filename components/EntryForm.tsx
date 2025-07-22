@@ -312,23 +312,6 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
                   style={[
                     styles.typeSliderButton,
                     styles.typeSliderButtonLeft,
-                    entryType === 'expense' && styles.typeSliderButtonActive,
-                  ]}
-                  onPress={() => setEntryType('expense')}
-                >
-                  <Text
-                    style={[
-                      styles.typeSliderText,
-                      entryType === 'expense' && styles.typeSliderTextActive,
-                    ]}
-                  >
-                    Uitgave
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.typeSliderButton,
-                    styles.typeSliderButtonRight,
                     entryType === 'income' && styles.typeSliderButtonActive,
                   ]}
                   onPress={() => setEntryType('income')}
@@ -340,6 +323,23 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
                     ]}
                   >
                     Inkomen
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.typeSliderButton,
+                    styles.typeSliderButtonRight,
+                    entryType === 'expense' && styles.typeSliderButtonActive,
+                  ]}
+                  onPress={() => setEntryType('expense')}
+                >
+                  <Text
+                    style={[
+                      styles.typeSliderText,
+                      entryType === 'expense' && styles.typeSliderTextActive,
+                    ]}
+                  >
+                    Uitgave
                   </Text>
                 </TouchableOpacity>
               </View>

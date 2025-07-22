@@ -13,15 +13,16 @@ import {
   Alert,
   FlatList,
 } from 'react-native';
-import { Calendar, Camera, X, Send } from 'lucide-react-native';
+import { Calendar, Camera, X, Send, FileText, Zap } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'react-native-document-picker';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { Image } from 'expo-image';
 import Colors from '@/constants/colors';
 import { FinanceEntry } from '@/types/finance';
 import { useFinanceStore } from '@/store/financeStore';
-import { processReceiptImages } from '@/utils/ocrService';
+import { processReceiptImages, processPDF } from '@/utils/ocrService';
 
 interface EntryFormProps {
   type: 'income' | 'expense';
@@ -40,6 +41,7 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
   const [showCamera, setShowCamera] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [useLocalAI, setUseLocalAI] = useState(true);
   const [facing, setFacing] = useState<CameraType>('back');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
@@ -80,6 +82,7 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
     setShowSuggestions(false);
     setFilteredSuggestions([]);
     setEntryType(type);
+    setUseLocalAI(true);
   };
   
   const getUniqueSuggestions = () => {
@@ -250,34 +253,26 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
     setIsProcessing(true);
     
     try {
-      // Probeer ChatGPT API als beschikbaar
-      if (apiKey) {
-        console.log('Processing with ChatGPT API...');
-        const apiResult = await processReceiptImages(imageUris, apiKey);
-        
-        if (apiResult) {
-          setName(apiResult.name || '');
-          setAmount(apiResult.amount ? apiResult.amount.toString().replace('.', ',') : '');
-          if (apiResult.vatRate) setVatRate(apiResult.vatRate.toString());
-          if (apiResult.date) {
-            setDate(new Date(apiResult.date));
-          }
-          Alert.alert('Succes', `${imageUris.length} foto${imageUris.length > 1 ? "'s" : ''} succesvol verwerkt!`);
-          return;
+      console.log(`Processing with ${useLocalAI ? 'Local AI' : 'ChatGPT API'}...`);
+      const result = await processReceiptImages(imageUris, apiKey || undefined, useLocalAI);
+      
+      if (result) {
+        setName(result.name || '');
+        setAmount(result.amount ? result.amount.toString().replace('.', ',') : '');
+        if (result.vatRate) setVatRate(result.vatRate.toString());
+        if (result.date) {
+          setDate(new Date(result.date));
         }
-      } else {
-        // Geen API key beschikbaar
+        
+        const processingMethod = useLocalAI ? 'Lokale AI' : 'ChatGPT API';
         Alert.alert(
-          'API Sleutel Vereist', 
-          'Om bonnen automatisch te verwerken heb je een ChatGPT API sleutel nodig. Ga naar het menu > API Sleutel om deze in te stellen. De foto\'s zijn wel opgeslagen bij de post.',
-          [
-            { text: 'OK', style: 'default' }
-          ]
+          'Succes', 
+          `${imageUris.length} foto${imageUris.length > 1 ? "'s" : ''} succesvol verwerkt met ${processingMethod}!`
         );
         return;
       }
       
-      // Als API verwerking faalt
+      // Als verwerking faalt
       Alert.alert(
         'Verwerking Mislukt', 
         'De bonnen konden niet automatisch verwerkt worden. De foto\'s zijn wel opgeslagen bij de post. Vul de gegevens handmatig in.',
@@ -299,6 +294,50 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
       );
     } finally {
       setIsProcessing(false);
+    }
+  };
+  
+  const pickPDF = async () => {
+    try {
+      const result = await DocumentPicker.pickSingle({
+        type: [DocumentPicker.types.pdf],
+        copyTo: 'cachesDirectory',
+      });
+      
+      if (result.fileCopyUri) {
+        setIsProcessing(true);
+        
+        try {
+          const pdfResult = await processPDF(result.fileCopyUri, apiKey || undefined, true);
+          
+          if (pdfResult) {
+            setName(pdfResult.name || '');
+            setAmount(pdfResult.amount ? pdfResult.amount.toString().replace('.', ',') : '');
+            if (pdfResult.vatRate) setVatRate(pdfResult.vatRate.toString());
+            if (pdfResult.date) {
+              setDate(new Date(pdfResult.date));
+            }
+            
+            Alert.alert('Succes', 'PDF succesvol verwerkt met Lokale AI!');
+          } else {
+            Alert.alert(
+              'Verwerking Mislukt',
+              'De PDF kon niet automatisch verwerkt worden. Vul de gegevens handmatig in.'
+            );
+          }
+        } catch (error) {
+          console.error('Error processing PDF:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Onbekende fout';
+          Alert.alert('PDF Verwerking Mislukt', `Fout: ${errorMessage}`);
+        } finally {
+          setIsProcessing(false);
+        }
+      }
+    } catch (error) {
+      if (!DocumentPicker.isCancel(error)) {
+        console.error('Error picking PDF:', error);
+        Alert.alert('Fout', 'Kon PDF niet selecteren');
+      }
     }
   };
   
@@ -467,21 +506,70 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
                 />
               )}
               
-              <Text style={styles.label}>Bonnen ({imageUris.length} foto&apos;s)</Text>
+              <Text style={styles.label}>Documenten ({imageUris.length} foto&apos;s)</Text>
               <View style={styles.imageActions}>
                 <TouchableOpacity
                   style={styles.imageButton}
                   onPress={openCamera}
                 >
-                  <Text style={styles.imageButtonText}>Foto&apos;s Maken</Text>
+                  <Camera size={16} color={Colors.text} />
+                  <Text style={styles.imageButtonText}>Foto&apos;s</Text>
                 </TouchableOpacity>
                 
                 <TouchableOpacity
                   style={styles.imageButton}
                   onPress={pickImages}
                 >
-                  <Text style={styles.imageButtonText}>Afbeeldingen Kiezen</Text>
+                  <Text style={styles.imageButtonText}>Afbeeldingen</Text>
                 </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={styles.imageButton}
+                  onPress={pickPDF}
+                >
+                  <FileText size={16} color={Colors.text} />
+                  <Text style={styles.imageButtonText}>PDF</Text>
+                </TouchableOpacity>
+              </View>
+              
+              {/* AI Processing Toggle */}
+              <View style={styles.aiToggleContainer}>
+                <Text style={styles.aiToggleLabel}>Verwerking:</Text>
+                <View style={styles.aiToggleButtons}>
+                  <TouchableOpacity
+                    style={[
+                      styles.aiToggleButton,
+                      useLocalAI && styles.aiToggleButtonActive,
+                    ]}
+                    onPress={() => setUseLocalAI(true)}
+                  >
+                    <Zap size={14} color={useLocalAI ? Colors.secondary : Colors.text} />
+                    <Text
+                      style={[
+                        styles.aiToggleText,
+                        useLocalAI && styles.aiToggleTextActive,
+                      ]}
+                    >
+                      Lokale AI
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.aiToggleButton,
+                      !useLocalAI && styles.aiToggleButtonActive,
+                    ]}
+                    onPress={() => setUseLocalAI(false)}
+                  >
+                    <Text
+                      style={[
+                        styles.aiToggleText,
+                        !useLocalAI && styles.aiToggleTextActive,
+                      ]}
+                    >
+                      ChatGPT API
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
               
               {imageUris.length > 0 && (
@@ -687,10 +775,14 @@ const styles = StyleSheet.create({
     padding: 12,
     alignItems: 'center',
     marginRight: 8,
+    flexDirection: 'row',
+    justifyContent: 'center',
   },
   imageButtonText: {
     color: Colors.text,
     fontWeight: '500',
+    marginLeft: 4,
+    fontSize: 12,
   },
   imagesContainer: {
     marginBottom: 16,
@@ -859,6 +951,45 @@ const styles = StyleSheet.create({
     color: Colors.text,
   },
   typeSliderTextActive: {
+    color: Colors.secondary,
+    fontWeight: 'bold',
+  },
+  aiToggleContainer: {
+    marginBottom: 16,
+  },
+  aiToggleLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: Colors.text,
+    marginBottom: 8,
+  },
+  aiToggleButtons: {
+    flexDirection: 'row',
+    backgroundColor: Colors.card,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+  },
+  aiToggleButton: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    backgroundColor: Colors.card,
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  aiToggleButtonActive: {
+    backgroundColor: Colors.primary,
+  },
+  aiToggleText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: Colors.text,
+    marginLeft: 4,
+  },
+  aiToggleTextActive: {
     color: Colors.secondary,
     fontWeight: 'bold',
   },

@@ -348,7 +348,7 @@ export default function BankStatementScreen() {
     <ScrollView style={styles.container}>
       <Stack.Screen
         options={{
-          title: 'Versie 2.9',
+          title: 'Versie 3.1',
           headerStyle: {
             backgroundColor: Colors.secondary,
           },

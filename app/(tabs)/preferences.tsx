@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -6,13 +6,13 @@ import {
   TouchableOpacity,
   ScrollView,
   Switch,
-  Alert,
+
 } from 'react-native';
 import { Stack } from 'expo-router';
-import { Settings, DollarSign, Eye, Key, Github, Play } from 'lucide-react-native';
+import { Settings, DollarSign, Eye, Key, Github } from 'lucide-react-native';
 import { useFinanceStore } from '@/store/financeStore';
 import Colors from '@/constants/colors';
-import { testOCRWithSampleText, testOCREngineInitialization } from '@/utils/localAIService';
+
 
 export default function PreferencesScreen() {
   const { 
@@ -26,7 +26,7 @@ export default function PreferencesScreen() {
     setIncomeDisplayMode 
   } = useFinanceStore();
   
-  const [testingOCR, setTestingOCR] = useState(false);
+
   
   const getDisplayModeText = (mode: 'both' | 'inclVat' | 'exVat') => {
     switch (mode) {
@@ -37,52 +37,7 @@ export default function PreferencesScreen() {
     }
   };
   
-  const testOCRFunctionality = async () => {
-    setTestingOCR(true);
-    try {
-      console.log('Starting OCR test...');
-      
-      // First test OCR engine initialization
-      console.log('Testing OCR engine initialization...');
-      const initResult = await testOCREngineInitialization();
-      
-      if (!initResult.success) {
-        Alert.alert(
-          'OCR Engine Initialisatie Mislukt',
-          `Fout bij initialisatie: ${initResult.error}\n\nControleer de console voor meer details.`,
-          [{ text: 'OK' }]
-        );
-        return;
-      }
-      
-      // Then test with sample text processing
-      console.log('Testing OCR text processing...');
-      const result = await testOCRWithSampleText();
-      
-      if (result.success) {
-        Alert.alert(
-          'OCR Test Succesvol!',
-          `Geëxtraheerde gegevens:\n\nNaam: ${result.data?.name || 'Niet gevonden'}\nBedrag: €${result.data?.amount || '0.00'}\nDatum: ${result.data?.date || 'Niet gevonden'}\nBTW: ${result.data?.vatRate || 21}%\n\nDe lokale OCR functionaliteit werkt correct!`,
-          [{ text: 'OK' }]
-        );
-      } else {
-        Alert.alert(
-          'OCR Test Mislukt',
-          `Fout: ${result.error}\n\nControleer de console voor meer details.`,
-          [{ text: 'OK' }]
-        );
-      }
-    } catch (error) {
-      console.error('OCR test error:', error);
-      Alert.alert(
-        'OCR Test Fout',
-        `Er is een onverwachte fout opgetreden: ${error instanceof Error ? error.message : 'Onbekende fout'}`,
-        [{ text: 'OK' }]
-      );
-    } finally {
-      setTestingOCR(false);
-    }
-  };
+
   
   return (
     <ScrollView style={styles.container}>
@@ -107,25 +62,7 @@ export default function PreferencesScreen() {
         </Text>
       </View>
       
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>OCR Test</Text>
-        
-        <TouchableOpacity 
-          style={[styles.testButton, testingOCR && styles.testButtonDisabled]} 
-          onPress={testOCRFunctionality}
-          disabled={testingOCR}
-        >
-          <Play size={20} color={Colors.secondary} style={styles.testButtonIcon} />
-          <Text style={styles.testButtonText}>
-            {testingOCR ? 'OCR wordt getest...' : 'Test Lokale OCR Functionaliteit'}
-          </Text>
-        </TouchableOpacity>
-        
-        <Text style={styles.testDescription}>
-          Test de lokale OCR functionaliteit met voorbeeldtekst. 
-          Dit helpt om te controleren of Tesseract.js correct werkt en bonnetjes kan verwerken.
-        </Text>
-      </View>
+
       
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>API Instellingen</Text>
@@ -397,32 +334,5 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontWeight: '500',
   },
-  testButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.primary,
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-  },
-  testButtonDisabled: {
-    backgroundColor: Colors.lightText,
-    opacity: 0.6,
-  },
-  testButtonIcon: {
-    marginRight: 12,
-  },
-  testButtonText: {
-    color: Colors.secondary,
-    fontSize: 16,
-    fontWeight: '600',
-    flex: 1,
-  },
-  testDescription: {
-    fontSize: 14,
-    color: Colors.lightText,
-    lineHeight: 20,
-    marginBottom: 10,
-    fontStyle: 'italic',
-  },
+
 });

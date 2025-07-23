@@ -225,15 +225,21 @@ export default function OverviewScreen() {
       </View>
       
       <View style={styles.statsContainer}>
-        <View style={styles.statCard}>
+        <TouchableOpacity 
+          style={styles.statCard}
+          onPress={() => router.push('/financial-analysis')}
+        >
           <Text style={styles.statLabel}>Inkomen Posten</Text>
           <Text style={styles.statValue}>{filteredIncomes.length}</Text>
-        </View>
+        </TouchableOpacity>
         
-        <View style={styles.statCard}>
+        <TouchableOpacity 
+          style={styles.statCard}
+          onPress={() => router.push('/financial-analysis')}
+        >
           <Text style={styles.statLabel}>Uitgaven Posten</Text>
           <Text style={styles.statValue}>{filteredExpenses.length}</Text>
-        </View>
+        </TouchableOpacity>
       </View>
       
       <TouchableOpacity

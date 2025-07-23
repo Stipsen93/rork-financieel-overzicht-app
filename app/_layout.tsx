@@ -5,6 +5,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { trpc, trpcClient } from "@/lib/trpc";
+import { MultiSelectProvider } from "@/store/multiSelectStore";
 
 export const unstable_settings = {
   // Ensure that reloading on `/modal` keeps a back button present.
@@ -42,7 +43,9 @@ export default function RootLayout() {
   return (
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
-        <RootLayoutNav />
+        <MultiSelectProvider>
+          <RootLayoutNav />
+        </MultiSelectProvider>
       </QueryClientProvider>
     </trpc.Provider>
   );

@@ -1,21 +1,33 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, Platform, Alert } from 'react-native';
-import { Trash2, Paperclip, X, Download, Share, Edit3 } from 'lucide-react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, Platform, Alert, Pressable } from 'react-native';
+import { Trash2, Paperclip, X, Download, Share, Edit3, Check } from 'lucide-react-native';
 import { Image } from 'expo-image';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import Colors from '@/constants/colors';
 import { FinanceEntry } from '@/types/finance';
 import { formatCurrency, formatDate } from '@/utils/finance';
+import { useMultiSelect } from '@/store/multiSelectStore';
 
 interface FinanceEntryItemProps {
   entry: FinanceEntry;
   onDelete: (id: string) => void;
   onEdit: (entry: FinanceEntry) => void;
+  entryType: 'income' | 'expense';
 }
 
-export default function FinanceEntryItem({ entry, onDelete, onEdit }: FinanceEntryItemProps) {
+export default function FinanceEntryItem({ entry, onDelete, onEdit, entryType }: FinanceEntryItemProps) {
   const [showImageModal, setShowImageModal] = useState(false);
+  const {
+    selectedIds,
+    isSelectionMode,
+    startSelection,
+    toggleSelection,
+    entryType: selectedEntryType,
+  } = useMultiSelect();
+  
+  const isSelected = selectedIds.has(entry.id);
+  const isCurrentType = selectedEntryType === entryType;
 
   const handleDownloadImage = async () => {
     if (!entry.imageUri) return;
@@ -66,9 +78,58 @@ export default function FinanceEntryItem({ entry, onDelete, onEdit }: FinanceEnt
     }
   };
 
+  const handlePress = () => {
+    if (isSelectionMode && isCurrentType) {
+      toggleSelection(entry.id);
+    }
+  };
+  
+  const handleLongPress = () => {
+    if (!isSelectionMode) {
+      startSelection(entry.id, entryType);
+    } else if (isCurrentType) {
+      toggleSelection(entry.id);
+    }
+  };
+  
+  const handleEdit = () => {
+    if (isSelectionMode) return;
+    onEdit(entry);
+  };
+  
+  const handleDelete = () => {
+    if (isSelectionMode) return;
+    onDelete(entry.id);
+  };
+  
+  const handleImagePress = () => {
+    if (isSelectionMode && isCurrentType) {
+      toggleSelection(entry.id);
+    } else {
+      setShowImageModal(true);
+    }
+  };
+
   return (
     <>
-      <View style={styles.container}>
+      <Pressable
+        style={[
+          styles.container,
+          isSelected && styles.selectedContainer,
+          isSelectionMode && !isCurrentType && styles.disabledContainer,
+        ]}
+        onPress={handlePress}
+        onLongPress={handleLongPress}
+        testID={`finance-entry-${entry.id}`}
+      >
+        {isSelectionMode && isCurrentType && (
+          <View style={styles.selectionIndicator}>
+            <View style={[styles.checkbox, isSelected && styles.checkedBox]}>
+              {isSelected && <Check size={16} color={Colors.background} />}
+            </View>
+          </View>
+        )}
+        
         <View style={styles.content}>
           <View style={styles.header}>
             <View style={styles.nameContainer}>
@@ -83,7 +144,7 @@ export default function FinanceEntryItem({ entry, onDelete, onEdit }: FinanceEnt
               {entry.imageUri && (
                 <TouchableOpacity
                   style={styles.attachmentIcon}
-                  onPress={() => setShowImageModal(true)}
+                  onPress={handleImagePress}
                 >
                   <Paperclip size={16} color={Colors.primary} />
                 </TouchableOpacity>
@@ -95,21 +156,23 @@ export default function FinanceEntryItem({ entry, onDelete, onEdit }: FinanceEnt
           </View>
         </View>
         
-        <View style={styles.actionButtons}>
-          <TouchableOpacity
-            style={styles.editButton}
-            onPress={() => onEdit(entry)}
-          >
-            <Edit3 size={18} color={Colors.primary} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.deleteButton}
-            onPress={() => onDelete(entry.id)}
-          >
-            <Trash2 size={18} color={Colors.danger} />
-          </TouchableOpacity>
-        </View>
-      </View>
+        {!isSelectionMode && (
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              style={styles.editButton}
+              onPress={handleEdit}
+            >
+              <Edit3 size={18} color={Colors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={handleDelete}
+            >
+              <Trash2 size={18} color={Colors.danger} />
+            </TouchableOpacity>
+          </View>
+        )}
+      </Pressable>
 
       {/* Image Modal */}
       <Modal
@@ -177,6 +240,33 @@ const styles = StyleSheet.create({
     elevation: 1,
     borderWidth: 1,
     borderColor: Colors.border,
+  },
+  selectedContainer: {
+    borderColor: Colors.primary,
+    borderWidth: 2,
+    backgroundColor: Colors.primaryLight,
+  },
+  disabledContainer: {
+    opacity: 0.5,
+  },
+  selectionIndicator: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: Colors.border,
+    backgroundColor: Colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkedBox: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
   content: {
     flex: 1,

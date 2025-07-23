@@ -9,13 +9,17 @@ import FinanceEntryItem from '@/components/FinanceEntryItem';
 import FloatingActionButton from '@/components/FloatingActionButton';
 import EntryForm from '@/components/EntryForm';
 import SearchBar from '@/components/SearchBar';
+import MultiSelectActionBar from '@/components/MultiSelectActionBar';
 import { filterEntriesByMonth } from '@/utils/finance';
+import { useMultiSelect } from '@/store/multiSelectStore';
 
 export default function ExpensesScreen() {
   const [showForm, setShowForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [editEntry, setEditEntry] = useState<FinanceEntry | undefined>(undefined);
   const { expenses, dateSelection, setDateSelection, removeExpense } = useFinanceStore();
+  
+  const { isSelectionMode, clearSelection } = useMultiSelect();
   
   const filteredExpenses = useMemo(
     () => filterEntriesByMonth(expenses, dateSelection.year, dateSelection.month)
@@ -49,6 +53,10 @@ export default function ExpensesScreen() {
   };
   
   const handleEdit = (entry: FinanceEntry) => {
+    if (isSelectionMode) {
+      clearSelection();
+      return;
+    }
     setEditEntry(entry);
     setShowForm(true);
   };
@@ -58,12 +66,22 @@ export default function ExpensesScreen() {
     setEditEntry(undefined);
   };
   
+  const handleAddNew = () => {
+    if (isSelectionMode) {
+      clearSelection();
+      return;
+    }
+    setShowForm(true);
+  };
+  
   return (
     <View style={styles.container}>
+      <MultiSelectActionBar entries={searchedExpenses} />
+      
       <ScrollView 
         style={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
-        stickyHeaderIndices={[0]}
+        stickyHeaderIndices={isSelectionMode ? [1] : [0]}
       >
         <View style={styles.stickyHeader}>
           <View style={styles.header}>
@@ -108,6 +126,7 @@ export default function ExpensesScreen() {
                   entry={item} 
                   onDelete={removeExpense}
                   onEdit={handleEdit}
+                  entryType="expense"
                 />
               ))}
             </View>
@@ -115,7 +134,7 @@ export default function ExpensesScreen() {
         </View>
       </ScrollView>
       
-      <FloatingActionButton type="expense" onPress={() => setShowForm(true)} />
+      <FloatingActionButton type="expense" onPress={handleAddNew} />
       
       <EntryForm
         type="expense"

@@ -1,6 +1,7 @@
 export default {
   primary: '#F5D76E', // Gold
   primaryDark: '#D4AF37', // Darker gold
+  primaryLight: '#F9E79F', // Light gold for selection
   secondary: '#FFFFFF', // White
   text: '#333333', // Dark text
   lightText: '#777777', // Light text

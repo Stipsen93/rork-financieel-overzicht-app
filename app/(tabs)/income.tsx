@@ -11,7 +11,9 @@ import FloatingActionButton from '@/components/FloatingActionButton';
 import EntryForm from '@/components/EntryForm';
 import SearchBar from '@/components/SearchBar';
 import StartingCapitalForm from '@/components/StartingCapitalForm';
+import MultiSelectActionBar from '@/components/MultiSelectActionBar';
 import { filterEntriesByMonth, formatCurrency } from '@/utils/finance';
+import { useMultiSelect } from '@/store/multiSelectStore';
 
 export default function IncomeScreen() {
   const [showForm, setShowForm] = useState(false);
@@ -26,6 +28,8 @@ export default function IncomeScreen() {
     startingCapital, 
     showStartingCapital 
   } = useFinanceStore();
+  
+  const { isSelectionMode, clearSelection } = useMultiSelect();
   
   const filteredIncomes = useMemo(
     () => filterEntriesByMonth(incomes, dateSelection.year, dateSelection.month)
@@ -59,6 +63,10 @@ export default function IncomeScreen() {
   };
   
   const handleEdit = (entry: FinanceEntry) => {
+    if (isSelectionMode) {
+      clearSelection();
+      return;
+    }
     setEditEntry(entry);
     setShowForm(true);
   };
@@ -68,12 +76,22 @@ export default function IncomeScreen() {
     setEditEntry(undefined);
   };
   
+  const handleAddNew = () => {
+    if (isSelectionMode) {
+      clearSelection();
+      return;
+    }
+    setShowForm(true);
+  };
+  
   return (
     <View style={styles.container}>
+      <MultiSelectActionBar entries={searchedIncomes} />
+      
       <ScrollView 
         style={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
-        stickyHeaderIndices={[0]}
+        stickyHeaderIndices={isSelectionMode ? [1] : [0]}
       >
         <View style={styles.stickyHeader}>
           <View style={styles.header}>
@@ -133,6 +151,7 @@ export default function IncomeScreen() {
                   entry={item} 
                   onDelete={removeIncome}
                   onEdit={handleEdit}
+                  entryType="income"
                 />
               ))}
             </View>
@@ -140,7 +159,7 @@ export default function IncomeScreen() {
         </View>
       </ScrollView>
       
-      <FloatingActionButton type="income" onPress={() => setShowForm(true)} />
+      <FloatingActionButton type="income" onPress={handleAddNew} />
       
       <EntryForm
         type="income"

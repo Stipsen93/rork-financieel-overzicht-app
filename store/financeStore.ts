@@ -30,6 +30,8 @@ interface FinanceState {
   updateExpense: (id: string, expense: Omit<FinanceEntry, 'id' | 'vatAmount'>) => void;
   removeIncome: (id: string) => void;
   removeExpense: (id: string) => void;
+  removeMultipleIncomes: (ids: string[]) => void;
+  removeMultipleExpenses: (ids: string[]) => void;
   setDateSelection: (dateSelection: DateSelection) => void;
   setYearSelection: (yearSelection: YearSelection) => void;
   setQuarterSelection: (quarterSelection: QuarterSelection) => void;
@@ -322,6 +324,18 @@ export const useFinanceStore = create<FinanceState>()(
       removeExpense: (id) => {
         set((state) => ({
           expenses: state.expenses.filter((expense) => expense.id !== id),
+        }));
+      },
+      
+      removeMultipleIncomes: (ids) => {
+        set((state) => ({
+          incomes: state.incomes.filter((income) => !ids.includes(income.id)),
+        }));
+      },
+      
+      removeMultipleExpenses: (ids) => {
+        set((state) => ({
+          expenses: state.expenses.filter((expense) => !ids.includes(expense.id)),
         }));
       },
       

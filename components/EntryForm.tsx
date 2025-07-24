@@ -47,6 +47,7 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
   const [entryType, setEntryType] = useState<'income' | 'expense'>(type);
+  const [category, setCategory] = useState<'zakelijke-uitgaven' | 'kantoorkosten' | 'reiskosten' | 'apparatuur-computers' | 'bedrijfsuitje' | 'autokosten' | 'overige-kosten'>('overige-kosten');
   
   const cameraRef = useRef<CameraView>(null);
   const { addIncome, addExpense, updateIncome, updateExpense, removeIncome, removeExpense, apiKey, githubToken, useApi, useGithubApi, dateSelection, incomes, expenses } = useFinanceStore();
@@ -61,6 +62,7 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
         setDate(new Date(editEntry.date));
         setImageUris(editEntry.imageUris || (editEntry.imageUri ? [editEntry.imageUri] : []));
         setEntryType(incomes.find(inc => inc.id === editEntry.id) ? 'income' : 'expense');
+        setCategory(editEntry.category || 'overige-kosten');
       } else {
         // Initialize with selected month/year from store, but current day
         const selectedDate = new Date(dateSelection.year, dateSelection.month - 1, new Date().getDate());
@@ -83,6 +85,7 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
     setShowSuggestions(false);
     setFilteredSuggestions([]);
     setEntryType(type);
+    setCategory('overige-kosten');
 
     setApiChoice('local');
   };
@@ -150,6 +153,7 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
       date: date.toISOString(),
       imageUri: imageUris.length > 0 ? imageUris[0] : undefined,
       imageUris: imageUris.length > 0 ? imageUris : undefined,
+      category: entryType === 'expense' ? category : undefined,
     };
     
     if (editEntry) {
@@ -500,6 +504,47 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
                   </TouchableOpacity>
                 ))}
               </View>
+              
+              {/* Category Selection - Only for expenses */}
+              {entryType === 'expense' && (
+                <>
+                  <Text style={styles.label}>Categorie</Text>
+                  <ScrollView 
+                    horizontal 
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.categoryScrollContainer}
+                    contentContainerStyle={styles.categoryContainer}
+                  >
+                    {[
+                      { key: 'overige-kosten', label: 'Overige kosten' },
+                      { key: 'zakelijke-uitgaven', label: 'Zakelijke uitgaven' },
+                      { key: 'kantoorkosten', label: 'Kantoorkosten' },
+                      { key: 'reiskosten', label: 'Reiskosten' },
+                      { key: 'apparatuur-computers', label: 'Apparatuur & computers' },
+                      { key: 'bedrijfsuitje', label: 'Bedrijfsuitje' },
+                      { key: 'autokosten', label: 'Autokosten' },
+                    ].map((cat) => (
+                      <TouchableOpacity
+                        key={cat.key}
+                        style={[
+                          styles.categoryButton,
+                          category === cat.key && styles.categoryButtonActive,
+                        ]}
+                        onPress={() => setCategory(cat.key as typeof category)}
+                      >
+                        <Text
+                          style={[
+                            styles.categoryText,
+                            category === cat.key && styles.categoryTextActive,
+                          ]}
+                        >
+                          {cat.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </>
+              )}
               
               <Text style={styles.label}>Datum</Text>
               <TouchableOpacity
@@ -1030,6 +1075,37 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   apiChoiceTextActive: {
+    color: Colors.secondary,
+    fontWeight: 'bold',
+  },
+  categoryScrollContainer: {
+    marginBottom: 16,
+  },
+  categoryContainer: {
+    paddingRight: 20,
+  },
+  categoryButton: {
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    marginRight: 8,
+    minWidth: 120,
+    alignItems: 'center',
+  },
+  categoryButtonActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primaryDark,
+  },
+  categoryText: {
+    fontSize: 14,
+    color: Colors.text,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  categoryTextActive: {
     color: Colors.secondary,
     fontWeight: 'bold',
   },

@@ -8,6 +8,7 @@ export interface FinanceEntry {
   imageUri?: string;
   imageUris?: string[];
   notes?: string;
+  category?: 'zakelijke-uitgaven' | 'kantoorkosten' | 'reiskosten' | 'apparatuur-computers' | 'bedrijfsuitje' | 'autokosten' | 'overige-kosten';
 }
 
 export interface MonthSummary {

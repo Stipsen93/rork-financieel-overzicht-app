@@ -24,6 +24,8 @@ interface IncomeTaxCalculation {
     officeExpenses: number;
     travelExpenses: number;
     equipmentExpenses: number;
+    companyEventExpenses: number;
+    carExpenses: number;
     otherExpenses: number;
   };
   taxableIncome: number;
@@ -48,36 +50,34 @@ export default function IncomeTaxScreen() {
     const totalExpenses = yearExpenses.reduce((sum, expense) => sum + (expense.amount - (expense.vatAmount || 0)), 0);
     const netProfit = totalIncome - totalExpenses;
     
-    // Categorize expenses for deduction purposes based on name
+    // Categorize expenses for deduction purposes based on category field
     const businessExpenses = yearExpenses
-      .filter(expense => expense.name.toLowerCase().includes('zakelijk') ||
-                        expense.name.toLowerCase().includes('business') ||
-                        expense.name.toLowerCase().includes('bedrijf'))
+      .filter(expense => expense.category === 'zakelijke-uitgaven')
       .reduce((sum, expense) => sum + (expense.amount - (expense.vatAmount || 0)), 0);
     
     const officeExpenses = yearExpenses
-      .filter(expense => expense.name.toLowerCase().includes('kantoor') ||
-                        expense.name.toLowerCase().includes('office') ||
-                        expense.name.toLowerCase().includes('bureau'))
+      .filter(expense => expense.category === 'kantoorkosten')
       .reduce((sum, expense) => sum + (expense.amount - (expense.vatAmount || 0)), 0);
     
     const travelExpenses = yearExpenses
-      .filter(expense => expense.name.toLowerCase().includes('reis') ||
-                        expense.name.toLowerCase().includes('travel') ||
-                        expense.name.toLowerCase().includes('transport') ||
-                        expense.name.toLowerCase().includes('benzine') ||
-                        expense.name.toLowerCase().includes('trein'))
+      .filter(expense => expense.category === 'reiskosten')
       .reduce((sum, expense) => sum + (expense.amount - (expense.vatAmount || 0)), 0);
     
     const equipmentExpenses = yearExpenses
-      .filter(expense => expense.name.toLowerCase().includes('apparatuur') ||
-                        expense.name.toLowerCase().includes('equipment') ||
-                        expense.name.toLowerCase().includes('computer') ||
-                        expense.name.toLowerCase().includes('laptop') ||
-                        expense.name.toLowerCase().includes('software'))
+      .filter(expense => expense.category === 'apparatuur-computers')
       .reduce((sum, expense) => sum + (expense.amount - (expense.vatAmount || 0)), 0);
     
-    const otherExpenses = totalExpenses - businessExpenses - officeExpenses - travelExpenses - equipmentExpenses;
+    const companyEventExpenses = yearExpenses
+      .filter(expense => expense.category === 'bedrijfsuitje')
+      .reduce((sum, expense) => sum + (expense.amount - (expense.vatAmount || 0)), 0);
+    
+    const carExpenses = yearExpenses
+      .filter(expense => expense.category === 'autokosten')
+      .reduce((sum, expense) => sum + (expense.amount - (expense.vatAmount || 0)), 0);
+    
+    const otherExpenses = yearExpenses
+      .filter(expense => !expense.category || expense.category === 'overige-kosten')
+      .reduce((sum, expense) => sum + (expense.amount - (expense.vatAmount || 0)), 0);
     
     // Box 1: Income from work and home (profit from business)
     const box1Income = Math.max(0, netProfit);
@@ -96,6 +96,8 @@ export default function IncomeTaxScreen() {
         officeExpenses,
         travelExpenses,
         equipmentExpenses,
+        companyEventExpenses,
+        carExpenses,
         otherExpenses,
       },
       taxableIncome: box1Income,
@@ -277,6 +279,28 @@ export default function IncomeTaxScreen() {
               onPress={() => copyToClipboard(incomeTaxCalculation.deductibleExpenses.equipmentExpenses.toFixed(2), 'Apparatuurkosten')}
             >
               <Text style={styles.expenseValue}>{formatCurrency(incomeTaxCalculation.deductibleExpenses.equipmentExpenses)}</Text>
+              <Copy size={14} color={Colors.primary} />
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.expenseRow}>
+            <Text style={styles.expenseLabel}>Bedrijfsuitje</Text>
+            <TouchableOpacity 
+              style={styles.copyButton}
+              onPress={() => copyToClipboard(incomeTaxCalculation.deductibleExpenses.companyEventExpenses.toFixed(2), 'Bedrijfsuitje kosten')}
+            >
+              <Text style={styles.expenseValue}>{formatCurrency(incomeTaxCalculation.deductibleExpenses.companyEventExpenses)}</Text>
+              <Copy size={14} color={Colors.primary} />
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.expenseRow}>
+            <Text style={styles.expenseLabel}>Autokosten</Text>
+            <TouchableOpacity 
+              style={styles.copyButton}
+              onPress={() => copyToClipboard(incomeTaxCalculation.deductibleExpenses.carExpenses.toFixed(2), 'Autokosten')}
+            >
+              <Text style={styles.expenseValue}>{formatCurrency(incomeTaxCalculation.deductibleExpenses.carExpenses)}</Text>
               <Copy size={14} color={Colors.primary} />
             </TouchableOpacity>
           </View>

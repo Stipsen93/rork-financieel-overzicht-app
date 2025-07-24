@@ -48,7 +48,7 @@ export default function TabLayout() {
                 marginLeft: 8,
                 fontWeight: '500'
               }}>
-3.2
+3.3
               </Text>
             </View>
           ),
@@ -114,6 +114,20 @@ export default function TabLayout() {
         <Tabs.Screen
           name="reset"
           options={{
+            href: null, // Hide from tab bar
+          }}
+        />
+        <Tabs.Screen
+          name="vat-declaration"
+          options={{
+            title: 'BTW Aangifte',
+            href: null, // Hide from tab bar
+          }}
+        />
+        <Tabs.Screen
+          name="income-tax"
+          options={{
+            title: 'Inkomsten Belasting',
             href: null, // Hide from tab bar
           }}
         />

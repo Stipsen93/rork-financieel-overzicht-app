@@ -9,7 +9,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { X, Key, FileText, RotateCcw, Save, Settings } from 'lucide-react-native';
+import { X, Key, FileText, RotateCcw, Save, Settings, Receipt, Calculator } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 
 interface SlideMenuProps {
@@ -104,6 +104,22 @@ export default function SlideMenu({ visible, onClose }: SlideMenuProps) {
             >
               <Save size={20} color={Colors.text} />
               <Text style={styles.menuItemText}>Back-up</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => handleMenuItemPress('/(tabs)/vat-declaration')}
+            >
+              <Receipt size={20} color={Colors.text} />
+              <Text style={styles.menuItemText}>BTW Aangifte</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => handleMenuItemPress('/(tabs)/income-tax')}
+            >
+              <Calculator size={20} color={Colors.text} />
+              <Text style={styles.menuItemText}>Inkomsten Belasting</Text>
             </TouchableOpacity>
             
             <TouchableOpacity

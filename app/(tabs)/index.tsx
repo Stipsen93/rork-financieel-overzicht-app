@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFinanceStore } from '@/store/financeStore';
 import Colors from '@/constants/colors';
@@ -78,6 +78,15 @@ export default function OverviewScreen() {
   // Determine which columns to show based on preference
   const showInclVat = incomeDisplayMode === 'both' || incomeDisplayMode === 'inclVat';
   const showExVat = incomeDisplayMode === 'both' || incomeDisplayMode === 'exVat';
+  
+  // Add Android debug info
+  const handleDebugPress = () => {
+    Alert.alert(
+      'Debug Info',
+      `Platform: ${Platform.OS}\nVersion: ${Platform.Version}\nEntries: ${incomes.length + expenses.length}`,
+      [{ text: 'OK' }]
+    );
+  };
   
   return (
     <ScrollView style={styles.container}>

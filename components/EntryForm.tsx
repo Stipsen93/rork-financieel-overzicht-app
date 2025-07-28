@@ -209,8 +209,9 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
     try {
       console.log('Taking picture...');
       const photo = await cameraRef.current.takePictureAsync({
-        quality: 0.8,
+        quality: Platform.OS === 'android' ? 0.6 : 0.8, // Lower quality on Android
         base64: false,
+        skipProcessing: Platform.OS === 'android', // Skip processing on Android for better performance
       });
       
       console.log('Photo taken:', photo);

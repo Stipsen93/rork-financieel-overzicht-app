@@ -3,6 +3,7 @@ import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
+import { Platform, Alert } from "react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { trpc, trpcClient } from "@/lib/trpc";
 import { MultiSelectProvider } from "@/store/multiSelectStore";
@@ -25,8 +26,13 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (error) {
-      console.error(error);
-      throw error;
+      console.error('Font loading error:', error);
+      if (Platform.OS === 'android') {
+        // On Android, continue without custom fonts if they fail to load
+        console.warn('Continuing without custom fonts on Android');
+      } else {
+        throw error;
+      }
     }
   }, [error]);
 

@@ -9,9 +9,10 @@ import {
 
 } from 'react-native';
 import { Stack } from 'expo-router';
-import { Settings, DollarSign, Eye, Key, Github } from 'lucide-react-native';
+import { Settings, DollarSign, Eye, Key, Globe } from 'lucide-react-native';
 import { useFinanceStore } from '@/store/financeStore';
 import Colors from '@/constants/colors';
+import { getTranslation } from '@/constants/translations';
 
 
 export default function PreferencesScreen() {
@@ -20,20 +21,22 @@ export default function PreferencesScreen() {
     setShowStartingCapital,
     useApi,
     setUseApi,
-    useGithubApi,
-    setUseGithubApi,
     incomeDisplayMode,
-    setIncomeDisplayMode 
+    setIncomeDisplayMode,
+    language,
+    setLanguage
   } = useFinanceStore();
+  
+  const t = (key: keyof typeof import('@/constants/translations').translations.nl) => getTranslation(language, key);
   
 
   
   const getDisplayModeText = (mode: 'both' | 'inclVat' | 'exVat') => {
     switch (mode) {
-      case 'both': return 'Beide kolommen';
-      case 'inclVat': return 'Alleen incl BTW';
-      case 'exVat': return 'Alleen ex BTW';
-      default: return 'Beide kolommen';
+      case 'both': return t('bothColumns');
+      case 'inclVat': return t('onlyInclVat');
+      case 'exVat': return t('onlyExVat');
+      default: return t('bothColumns');
     }
   };
   
@@ -43,7 +46,7 @@ export default function PreferencesScreen() {
     <ScrollView style={styles.container}>
       <Stack.Screen
         options={{
-          title: 'Voorkeuren',
+          title: t('preferences'),
           headerStyle: {
             backgroundColor: Colors.secondary,
           },
@@ -56,25 +59,67 @@ export default function PreferencesScreen() {
       
       <View style={styles.header}>
         <Settings size={48} color={Colors.primary} />
-        <Text style={styles.title}>App Voorkeuren</Text>
+        <Text style={styles.title}>{t('appPreferences')}</Text>
         <Text style={styles.subtitle}>
-          Pas de app instellingen aan naar jouw voorkeur
+          {t('preferencesSubtitle')}
         </Text>
       </View>
       
-
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{t('languageSettings')}</Text>
+        
+        <View style={styles.preferenceItem}>
+          <View style={styles.preferenceContent}>
+            <View style={styles.preferenceHeader}>
+              <Globe size={24} color={Colors.text} />
+              <Text style={styles.preferenceTitle}>{t('appLanguage')}</Text>
+            </View>
+            <Text style={styles.preferenceDescription}>
+              {t('languageDescription')}
+            </Text>
+            <Text style={styles.currentSelection}>
+              {t('currentLanguage')}: {language === 'nl' ? t('dutch') : t('english')}
+            </Text>
+          </View>
+        </View>
+        
+        <View style={styles.displayModeButtons}>
+          {[
+            { key: 'nl' as const, label: t('dutch') },
+            { key: 'en' as const, label: t('english') },
+          ].map((option) => (
+            <TouchableOpacity
+              key={option.key}
+              style={[
+                styles.displayModeButton,
+                language === option.key && styles.displayModeButtonActive,
+              ]}
+              onPress={() => setLanguage(option.key)}
+            >
+              <Text
+                style={[
+                  styles.displayModeButtonText,
+                  language === option.key && styles.displayModeButtonTextActive,
+                ]}
+              >
+                {option.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
       
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>API Instellingen</Text>
+        <Text style={styles.sectionTitle}>{t('apiSettings')}</Text>
         
         <View style={styles.preferenceItem}>
           <View style={styles.preferenceContent}>
             <View style={styles.preferenceHeader}>
               <Key size={24} color={Colors.text} />
-              <Text style={styles.preferenceTitle}>OpenAI API Gebruiken</Text>
+              <Text style={styles.preferenceTitle}>{t('useOpenAI')}</Text>
             </View>
             <Text style={styles.preferenceDescription}>
-              Schakel het gebruik van OpenAI ChatGPT API in voor het verwerken van bonnetjes en facturen
+              {t('openAIDescription')}
             </Text>
           </View>
           <Switch
@@ -84,37 +129,19 @@ export default function PreferencesScreen() {
             thumbColor={useApi ? Colors.primaryDark : Colors.lightText}
           />
         </View>
-        
-        <View style={styles.preferenceItem}>
-          <View style={styles.preferenceContent}>
-            <View style={styles.preferenceHeader}>
-              <Github size={24} color={Colors.text} />
-              <Text style={styles.preferenceTitle}>GitHub API Gebruiken</Text>
-            </View>
-            <Text style={styles.preferenceDescription}>
-              Schakel het gebruik van GitHub ChatGPT API in voor het verwerken van bonnetjes en facturen
-            </Text>
-          </View>
-          <Switch
-            value={useGithubApi}
-            onValueChange={setUseGithubApi}
-            trackColor={{ false: Colors.border, true: Colors.primary }}
-            thumbColor={useGithubApi ? Colors.primaryDark : Colors.lightText}
-          />
-        </View>
       </View>
       
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Financiële Instellingen</Text>
+        <Text style={styles.sectionTitle}>{t('financialSettings')}</Text>
         
         <View style={styles.preferenceItem}>
           <View style={styles.preferenceContent}>
             <View style={styles.preferenceHeader}>
               <DollarSign size={24} color={Colors.text} />
-              <Text style={styles.preferenceTitle}>Startkapitaal Weergeven</Text>
+              <Text style={styles.preferenceTitle}>{t('showStartingCapital')}</Text>
             </View>
             <Text style={styles.preferenceDescription}>
-              Toon de startkapitaal knop op de inkomen pagina om je beginbalans in te stellen
+              {t('startingCapitalDescription')}
             </Text>
           </View>
           <Switch
@@ -127,28 +154,28 @@ export default function PreferencesScreen() {
       </View>
       
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Overzicht Weergave</Text>
+        <Text style={styles.sectionTitle}>{t('displaySettings')}</Text>
         
         <View style={styles.preferenceItem}>
           <View style={styles.preferenceContent}>
             <View style={styles.preferenceHeader}>
               <Eye size={24} color={Colors.text} />
-              <Text style={styles.preferenceTitle}>Inkomen Kolommen</Text>
+              <Text style={styles.preferenceTitle}>{t('incomeColumns')}</Text>
             </View>
             <Text style={styles.preferenceDescription}>
-              Kies welke inkomen kolommen je wilt zien op de overzicht pagina
+              {t('incomeColumnsDescription')}
             </Text>
             <Text style={styles.currentSelection}>
-              Huidige selectie: {getDisplayModeText(incomeDisplayMode)}
+              {t('currentSelection')}: {getDisplayModeText(incomeDisplayMode)}
             </Text>
           </View>
         </View>
         
         <View style={styles.displayModeButtons}>
           {[
-            { key: 'both' as const, label: 'Beide kolommen', description: 'Toon zowel incl als ex BTW' },
-            { key: 'inclVat' as const, label: 'Alleen incl BTW', description: 'Toon alleen inkomen inclusief BTW' },
-            { key: 'exVat' as const, label: 'Alleen ex BTW', description: 'Toon alleen inkomen exclusief BTW' },
+            { key: 'both' as const, label: t('bothColumns'), description: t('bothColumnsDesc') },
+            { key: 'inclVat' as const, label: t('onlyInclVat'), description: t('onlyInclVatDesc') },
+            { key: 'exVat' as const, label: t('onlyExVat'), description: t('onlyExVatDesc') },
           ].map((option) => (
             <TouchableOpacity
               key={option.key}
@@ -180,13 +207,12 @@ export default function PreferencesScreen() {
       </View>
       
       <View style={styles.infoSection}>
-        <Text style={styles.infoTitle}>Over Voorkeuren</Text>
+        <Text style={styles.infoTitle}>{t('aboutPreferences')}</Text>
         <Text style={styles.infoText}>
-          Hier kun je verschillende app instellingen aanpassen om de app naar jouw wensen te configureren. 
-          Deze instellingen worden automatisch opgeslagen en blijven behouden tussen app sessies.
+          {t('preferencesInfo')}
           {"\n\n"}
           <Text style={styles.infoNote}>
-            Let op: OpenAI API gebruik vereist een geldige ChatGPT API sleutel en GitHub API gebruik vereist een geldige GitHub token. Deze kun je instellen in het profiel.
+            {t('apiNote')}
           </Text>
         </Text>
       </View>

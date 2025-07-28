@@ -209,9 +209,10 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
     try {
       console.log('Taking picture...');
       const photo = await cameraRef.current.takePictureAsync({
-        quality: Platform.OS === 'android' ? 0.6 : 0.8, // Lower quality on Android
+        quality: Platform.OS === 'android' ? 0.5 : 0.8, // Even lower quality on Android
         base64: false,
         skipProcessing: Platform.OS === 'android', // Skip processing on Android for better performance
+        exif: false, // Disable EXIF data to reduce processing
       });
       
       console.log('Photo taken:', photo);
@@ -220,12 +221,15 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
         setImageUris(prev => [...prev, photo.uri]);
         console.log('Photo added to list, total:', imageUris.length + 1);
       } else {
+        console.error('Photo object is invalid:', photo);
         Alert.alert('Fout', 'Foto kon niet worden opgeslagen');
       }
     } catch (error) {
       console.error('Error taking picture:', error);
       const errorMessage = error instanceof Error ? error.message : 'Onbekende fout';
       Alert.alert('Camera Fout', `Kon geen foto maken: ${errorMessage}`);
+      // Don't crash the app, just close the camera
+      setShowCamera(false);
     }
   };
   

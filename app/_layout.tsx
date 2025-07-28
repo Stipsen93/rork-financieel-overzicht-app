@@ -3,10 +3,11 @@ import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
-import { Platform, Alert } from "react-native";
+import { Platform } from "react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { trpc, trpcClient } from "@/lib/trpc";
 import { MultiSelectProvider } from "@/store/multiSelectStore";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 export const unstable_settings = {
   // Ensure that reloading on `/modal` keeps a back button present.
@@ -30,6 +31,8 @@ export default function RootLayout() {
       if (Platform.OS === 'android') {
         // On Android, continue without custom fonts if they fail to load
         console.warn('Continuing without custom fonts on Android');
+        // Don't throw error on Android, just continue
+        return;
       } else {
         throw error;
       }
@@ -37,23 +40,25 @@ export default function RootLayout() {
   }, [error]);
 
   useEffect(() => {
-    if (loaded) {
+    if (loaded || (error && Platform.OS === 'android')) {
       SplashScreen.hideAsync();
     }
-  }, [loaded]);
+  }, [loaded, error]);
 
-  if (!loaded) {
+  if (!loaded && !(error && Platform.OS === 'android')) {
     return null;
   }
 
   return (
-    <trpc.Provider client={trpcClient} queryClient={queryClient}>
-      <QueryClientProvider client={queryClient}>
-        <MultiSelectProvider>
-          <RootLayoutNav />
-        </MultiSelectProvider>
-      </QueryClientProvider>
-    </trpc.Provider>
+    <ErrorBoundary>
+      <trpc.Provider client={trpcClient} queryClient={queryClient}>
+        <QueryClientProvider client={queryClient}>
+          <MultiSelectProvider>
+            <RootLayoutNav />
+          </MultiSelectProvider>
+        </QueryClientProvider>
+      </trpc.Provider>
+    </ErrorBoundary>
   );
 }
 

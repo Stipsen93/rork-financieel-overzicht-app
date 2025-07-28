@@ -50,7 +50,7 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
   const [category, setCategory] = useState<'zakelijke-uitgaven' | 'kantoorkosten' | 'reiskosten' | 'apparatuur-computers' | 'bedrijfsuitje' | 'autokosten' | 'overige-kosten'>('overige-kosten');
   
   const cameraRef = useRef<CameraView>(null);
-  const { addIncome, addExpense, updateIncome, updateExpense, removeIncome, removeExpense, apiKey, githubToken, useApi, useGithubApi, dateSelection, incomes, expenses } = useFinanceStore();
+  const { addIncome, addExpense, updateIncome, updateExpense, removeIncome, removeExpense, apiKey, useApi, dateSelection, incomes, expenses } = useFinanceStore();
   
   useEffect(() => {
     if (visible) {
@@ -269,13 +269,9 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
         shouldUseLocalAI = false;
         shouldUseGithubAPI = false;
         currentApiKey = apiKey;
-      } else if (apiChoice === 'github' && useGithubApi && githubToken) {
-        shouldUseLocalAI = false;
-        shouldUseGithubAPI = true;
-        currentApiKey = githubToken;
       }
       
-      console.log(`Processing with ${shouldUseLocalAI ? 'Local AI' : (shouldUseGithubAPI ? 'GitHub API' : 'OpenAI API')}...`);
+      console.log(`Processing with ${shouldUseLocalAI ? 'Local AI' : 'OpenAI API'}...`);
       const result = await processReceiptImages(imageUris, currentApiKey, shouldUseLocalAI, shouldUseGithubAPI);
       
       if (result) {
@@ -286,7 +282,7 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
           setDate(new Date(result.date));
         }
         
-        const processingMethod = shouldUseLocalAI ? 'Lokale AI' : (shouldUseGithubAPI ? 'GitHub API' : 'OpenAI API');
+        const processingMethod = shouldUseLocalAI ? 'Lokale AI' : 'OpenAI API';
         Alert.alert(
           'Succes', 
           `${imageUris.length} foto${imageUris.length > 1 ? "'s" : ''} succesvol verwerkt met ${processingMethod}!`
@@ -595,7 +591,7 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
               </View>
               
               {/* AI Processing Toggle - Show available options based on settings */}
-              {(useApi || useGithubApi) && (
+              {useApi && (
                 <View style={styles.aiToggleContainer}>
                   <Text style={styles.aiToggleLabel}>Verwerking:</Text>
                   <View style={styles.apiChoiceContainer}>
@@ -636,24 +632,7 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
                       </TouchableOpacity>
                     )}
                     
-                    {useGithubApi && githubToken && (
-                      <TouchableOpacity
-                        style={[
-                          styles.apiChoiceButton,
-                          apiChoice === 'github' && styles.apiChoiceButtonActive,
-                        ]}
-                        onPress={() => setApiChoice('github')}
-                      >
-                        <Text
-                          style={[
-                            styles.apiChoiceText,
-                            apiChoice === 'github' && styles.apiChoiceTextActive,
-                          ]}
-                        >
-                          GitHub
-                        </Text>
-                      </TouchableOpacity>
-                    )}
+
                   </View>
                 </View>
               )}

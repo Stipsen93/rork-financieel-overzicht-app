@@ -19,7 +19,6 @@ import { Image } from 'expo-image';
 import Colors from '@/constants/colors';
 import { useFinanceStore } from '@/store/financeStore';
 import { processBankStatements } from '@/utils/bankStatementService';
-import { localAI, testOCRWithSampleText, testOCREngineInitialization, testOCRWithReceiptImage } from '@/utils/localAIService';
 
 interface SelectedFile {
   uri: string;
@@ -33,9 +32,6 @@ export default function BankStatementScreen() {
   const [showCamera, setShowCamera] = useState(false);
   const [facing, setFacing] = useState<CameraType>('back');
   const [permission, requestPermission] = useCameraPermissions();
-  const [isTestingOCR, setIsTestingOCR] = useState(false);
-  const [ocrTestResult, setOcrTestResult] = useState<string>('');
-  const [showOCRTest, setShowOCRTest] = useState(false);
   
   const { apiKey, addIncome, addExpense } = useFinanceStore();
   const cameraRef = React.useRef<CameraView>(null);
@@ -44,7 +40,7 @@ export default function BankStatementScreen() {
     if (!permission?.granted) {
       const permissionResult = await requestPermission();
       if (!permissionResult.granted) {
-        Alert.alert('Toestemming vereist', 'Camera toestemming is nodig om foto&apos;s te maken');
+        Alert.alert('Toestemming vereist', 'Camera toestemming is nodig om foto\'s te maken');
         return;
       }
     }
@@ -60,15 +56,7 @@ export default function BankStatementScreen() {
         base64: false,
       });
       if (photo) {
-        if (showOCRTest) {
-          // If in OCR test mode, run OCR test immediately
-          setShowCamera(false);
-          setShowOCRTest(false);
-          await runOCRTest([photo.uri]);
-        } else {
-          // Normal mode: add to selected files
-          setSelectedFiles(prev => [...prev, { uri: photo.uri, type: 'image' }]);
-        }
+        setSelectedFiles(prev => [...prev, { uri: photo.uri, type: 'image' }]);
       }
     } catch (error) {
       console.error('Error taking picture:', error);
@@ -120,147 +108,6 @@ export default function BankStatementScreen() {
 
   const removeFile = (indexToRemove: number) => {
     setSelectedFiles(prev => prev.filter((_, index) => index !== indexToRemove));
-  };
-
-  const testOCRWithCamera = async () => {
-    if (!permission?.granted) {
-      const permissionResult = await requestPermission();
-      if (!permissionResult.granted) {
-        Alert.alert('Toestemming vereist', 'Camera toestemming is nodig om foto&apos;s te maken');
-        return;
-      }
-    }
-    setShowCamera(true);
-    setShowOCRTest(true);
-  };
-
-  const testOCRWithPhoto = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Toestemming vereist', 'Toegang tot fotobibliotheek is nodig om afbeeldingen te selecteren');
-      return;
-    }
-    
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: false,
-      allowsMultipleSelection: false,
-      quality: 0.8,
-    });
-    
-    if (!result.canceled && result.assets && result.assets.length > 0) {
-      const imageUri = result.assets[0].uri;
-      await runOCRTest([imageUri]);
-    }
-  };
-
-  const runOCRTest = async (imageUris?: string[]) => {
-    setIsTestingOCR(true);
-    setOcrTestResult('');
-    
-    try {
-      let result;
-      
-      if (imageUris && imageUris.length > 0) {
-        console.log('Testing OCR with provided images:', imageUris);
-        result = await localAI.processReceiptImages(imageUris);
-      } else {
-        console.log('Testing OCR with sample text...');
-        result = await testOCRWithSampleText();
-      }
-      
-      if (result.success && result.data) {
-        const data = result.data;
-        setOcrTestResult(
-          `✅ OCR Test Succesvol!\n\n` +
-          `Bedrijf: ${data.name || 'Niet gevonden'}\n` +
-          `Bedrag: €${data.amount?.toFixed(2) || '0.00'}\n` +
-          `BTW: ${data.vatRate || 21}%\n` +
-          `Datum: ${data.date || 'Niet gevonden'}\n\n` +
-          `De lokale OCR werkt correct en kan bonnetjes lezen!`
-        );
-        
-        Alert.alert(
-          'OCR Test Succesvol!',
-          `Bedrijf: ${data.name}\nBedrag: €${data.amount?.toFixed(2)}\nBTW: ${data.vatRate}%`,
-          [
-            {
-              text: 'Toevoegen als Uitgave',
-              onPress: () => {
-                if (data.amount && data.amount > 0) {
-                  addExpense({
-                    name: data.name || 'OCR Test Uitgave',
-                    amount: data.amount,
-                    vatRate: data.vatRate || 21,
-                    date: data.date || new Date().toISOString().split('T')[0],
-                  });
-                  Alert.alert('Toegevoegd', 'Uitgave is toegevoegd aan je administratie!');
-                }
-              }
-            },
-            { text: 'OK', style: 'default' }
-          ]
-        );
-      } else {
-        setOcrTestResult(
-          `❌ OCR Test Mislukt\n\n` +
-          `Fout: ${result.error || 'Onbekende fout'}\n\n` +
-          `Probeer een andere foto of controleer de OCR instellingen.`
-        );
-        
-        Alert.alert('OCR Test Mislukt', result.error || 'Onbekende fout bij OCR test');
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Onbekende fout';
-      setOcrTestResult(
-        `❌ OCR Test Fout\n\n` +
-        `Fout: ${errorMessage}\n\n` +
-        `Controleer de console voor meer details.`
-      );
-      
-      console.error('OCR test error:', error);
-      Alert.alert('OCR Test Fout', errorMessage);
-    } finally {
-      setIsTestingOCR(false);
-    }
-  };
-
-  const testOCREngineInit = async () => {
-    setIsTestingOCR(true);
-    setOcrTestResult('');
-    
-    try {
-      console.log('Testing OCR engine initialization...');
-      const result = await testOCREngineInitialization();
-      
-      if (result.success) {
-        setOcrTestResult(
-          `✅ OCR Engine Test Succesvol!\n\n` +
-          `De OCR engine kan succesvol worden geïnitialiseerd en is klaar voor gebruik.\n\n` +
-          `Test nu met een echte foto om de volledige functionaliteit te controleren.`
-        );
-        Alert.alert('OCR Engine OK', 'OCR engine werkt correct!');
-      } else {
-        setOcrTestResult(
-          `❌ OCR Engine Test Mislukt\n\n` +
-          `Fout: ${result.error || 'Onbekende fout'}\n\n` +
-          `De OCR engine kan niet worden geïnitialiseerd.`
-        );
-        Alert.alert('OCR Engine Fout', result.error || 'OCR engine initialisatie mislukt');
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Onbekende fout';
-      setOcrTestResult(
-        `❌ OCR Engine Fout\n\n` +
-        `Fout: ${errorMessage}\n\n` +
-        `Controleer de console voor meer details.`
-      );
-      
-      console.error('OCR engine test error:', error);
-      Alert.alert('OCR Engine Fout', errorMessage);
-    } finally {
-      setIsTestingOCR(false);
-    }
   };
 
   const processStatements = async () => {
@@ -362,7 +209,7 @@ export default function BankStatementScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Bankafschriften Verwerken</Text>
         <Text style={styles.subtitle}>
-          Maak foto&apos;s van je bankafschriften, selecteer afbeeldingen of upload PDF bestanden om automatisch alle transacties toe te voegen met ChatGPT AI
+          Maak foto's van je bankafschriften, selecteer afbeeldingen of upload PDF bestanden om automatisch alle transacties toe te voegen met ChatGPT AI
         </Text>
       </View>
       
@@ -375,7 +222,7 @@ export default function BankStatementScreen() {
             onPress={openCamera}
           >
             <Camera size={24} color={Colors.text} />
-            <Text style={styles.uploadButtonText}>Foto&apos;s Maken</Text>
+            <Text style={styles.uploadButtonText}>Foto's Maken</Text>
           </TouchableOpacity>
           
           <TouchableOpacity
@@ -444,8 +291,8 @@ export default function BankStatementScreen() {
         <Text style={styles.infoTitle}>Hoe werkt het?</Text>
         <Text style={styles.infoText}>
           1. Zorg dat je ChatGPT API sleutel is ingesteld{'\n'}
-          2. Maak duidelijke foto&apos;s van je bankafschriften, selecteer afbeeldingen of upload PDF bestanden{'\n'}
-          3. Druk op &quot;Bankafschriften Verwerken&quot;{'\n'}
+          2. Maak duidelijke foto's van je bankafschriften, selecteer afbeeldingen of upload PDF bestanden{'\n'}
+          3. Druk op "Bankafschriften Verwerken"{'\n'}
           4. De app leest automatisch alle transacties uit alle bestanden{'\n'}
           5. Inkomsten en uitgaven worden automatisch toegevoegd{'\n'}
           {'\n'}
@@ -453,65 +300,6 @@ export default function BankStatementScreen() {
             Let op: Controleer altijd de toegevoegde transacties en pas indien nodig aan.
           </Text>
         </Text>
-      </View>
-      
-      {/* OCR Test Section */}
-      <View style={styles.ocrTestSection}>
-        <Text style={styles.sectionTitle}>🔬 Lokale OCR Testen</Text>
-        <Text style={styles.ocrTestDescription}>
-          Test de lokale OCR functionaliteit om te controleren of bonnetjes correct kunnen worden gelezen zonder internet.
-        </Text>
-        
-        <View style={styles.ocrTestButtons}>
-          <TouchableOpacity
-            style={[styles.ocrTestButton, styles.ocrTestButtonPrimary]}
-            onPress={testOCREngineInit}
-            disabled={isTestingOCR}
-          >
-            <Text style={styles.ocrTestButtonText}>Engine Test</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.ocrTestButton, styles.ocrTestButtonSecondary]}
-            onPress={() => runOCRTest()}
-            disabled={isTestingOCR}
-          >
-            <Text style={styles.ocrTestButtonText}>Sample Test</Text>
-          </TouchableOpacity>
-        </View>
-        
-        <View style={styles.ocrTestButtons}>
-          <TouchableOpacity
-            style={[styles.ocrTestButton, styles.ocrTestButtonCamera]}
-            onPress={testOCRWithCamera}
-            disabled={isTestingOCR}
-          >
-            <Camera size={16} color={Colors.text} />
-            <Text style={styles.ocrTestButtonText}>Camera Test</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.ocrTestButton, styles.ocrTestButtonUpload]}
-            onPress={testOCRWithPhoto}
-            disabled={isTestingOCR}
-          >
-            <Upload size={16} color={Colors.text} />
-            <Text style={styles.ocrTestButtonText}>Foto Test</Text>
-          </TouchableOpacity>
-        </View>
-        
-        {isTestingOCR && (
-          <View style={styles.ocrTestLoading}>
-            <ActivityIndicator size="small" color={Colors.primary} />
-            <Text style={styles.ocrTestLoadingText}>OCR wordt getest...</Text>
-          </View>
-        )}
-        
-        {ocrTestResult !== '' && (
-          <View style={styles.ocrTestResult}>
-            <Text style={styles.ocrTestResultText}>{ocrTestResult}</Text>
-          </View>
-        )}
       </View>
 
       {/* Camera Modal */}
@@ -526,10 +314,7 @@ export default function BankStatementScreen() {
               <View style={styles.cameraControls}>
                 <TouchableOpacity
                   style={styles.cameraButton}
-                  onPress={() => {
-                    setShowCamera(false);
-                    setShowOCRTest(false);
-                  }}
+                  onPress={() => setShowCamera(false)}
                 >
                   <X size={24} color={Colors.secondary} />
                 </TouchableOpacity>
@@ -542,7 +327,7 @@ export default function BankStatementScreen() {
                     <View style={styles.captureButtonInner} />
                   </TouchableOpacity>
                   <Text style={styles.photoCount}>
-                    {showOCRTest ? 'OCR Test' : `${selectedFiles.filter(f => f.type === 'image').length} foto&apos;s`}
+                    {selectedFiles.filter(f => f.type === 'image').length} foto's
                   </Text>
                 </View>
                 
@@ -782,80 +567,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     fontWeight: 'bold',
-  },
-  ocrTestSection: {
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    padding: 20,
-    margin: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    marginBottom: 32,
-  },
-  ocrTestDescription: {
-    fontSize: 14,
-    color: Colors.lightText,
-    marginBottom: 16,
-    lineHeight: 20,
-  },
-  ocrTestButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  ocrTestButton: {
-    flex: 1,
-    borderRadius: 8,
-    padding: 12,
-    alignItems: 'center',
-    marginHorizontal: 4,
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  ocrTestButtonPrimary: {
-    backgroundColor: Colors.primary,
-  },
-  ocrTestButtonSecondary: {
-    backgroundColor: Colors.primaryDark,
-  },
-  ocrTestButtonCamera: {
-    backgroundColor: '#4CAF50',
-  },
-  ocrTestButtonUpload: {
-    backgroundColor: '#2196F3',
-  },
-  ocrTestButtonText: {
-    color: Colors.text,
-    fontWeight: '500',
-    fontSize: 12,
-    marginLeft: 4,
-  },
-  ocrTestLoading: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    backgroundColor: Colors.background,
-    borderRadius: 8,
-    marginTop: 8,
-  },
-  ocrTestLoadingText: {
-    color: Colors.text,
-    marginLeft: 8,
-    fontSize: 14,
-  },
-  ocrTestResult: {
-    backgroundColor: Colors.background,
-    borderRadius: 8,
-    padding: 16,
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  ocrTestResultText: {
-    color: Colors.text,
-    fontSize: 13,
-    lineHeight: 18,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
 });

@@ -273,11 +273,8 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
         return;
       }
       
-      let shouldUseGithubAPI = false;
-      let currentApiKey = apiKey;
-      
-      console.log('Processing with OpenAI API...');
-      const result = await processReceiptImages(imageUris, currentApiKey, shouldUseGithubAPI);
+      console.log('Processing with ChatGPT API...');
+      const result = await processReceiptImages(imageUris, apiKey);
       
       if (result) {
         setName(result.name || '');
@@ -287,10 +284,9 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
           setDate(new Date(result.date));
         }
         
-        const processingMethod = 'OpenAI API';
         Alert.alert(
           'Succes', 
-          `${imageUris.length} foto${imageUris.length > 1 ? "'s" : ''} succesvol verwerkt met ${processingMethod}!`
+          `${imageUris.length} foto${imageUris.length > 1 ? "'s" : ''} succesvol verwerkt met ChatGPT API!`
         );
         return;
       }

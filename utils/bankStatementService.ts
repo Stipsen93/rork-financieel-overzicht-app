@@ -66,19 +66,25 @@ export const processBankStatements = async (
     const contentParts: ContentPart[] = [
       { 
         type: 'text', 
-        text: `Analyseer ${files.length > 1 ? 'deze bankafschriften' : 'dit bankafschrift'} en extraheer alle transacties:
-
-${pdfFiles.length > 0 ? `
-PDF BESTANDEN (${pdfFiles.length}):
-${base64PDFs.map((pdf, index) => `
-PDF ${index + 1}${pdf.name ? ` (${pdf.name})` : ''}:
-${pdf.base64}
-`).join('')}
-` : ''}
-
-${imageFiles.length > 0 ? `AFBEELDING BESTANDEN (${imageFiles.length}):` : ''}`
+        text: `Analyseer ${files.length > 1 ? 'deze bankafschriften' : 'dit bankafschrift'} en extraheer alle transacties:`
       }
     ];
+
+    // Add PDF files as text content (since ChatGPT API handles PDFs as text)
+    base64PDFs.forEach((pdf, index) => {
+      contentParts.push({
+        type: 'text',
+        text: `PDF ${index + 1}${pdf.name ? ` (${pdf.name})` : ''}: ${pdf.base64}`
+      });
+    });
+
+    // Add separator if both PDFs and images exist
+    if (pdfFiles.length > 0 && imageFiles.length > 0) {
+      contentParts.push({
+        type: 'text',
+        text: `\nAFBEELDING BESTANDEN (${imageFiles.length}):`
+      });
+    }
 
     // Add image files to content
     base64Images.forEach((image, index) => {
@@ -107,11 +113,7 @@ BELANGRIJKE INSTRUCTIES:
    - ABN AMRO: Weer een ander formaat
    - Lees ALLE tekst in het document, ook als het in tabelvorm staat
 
-3. PDF VERWERKING: Voor PDF bestanden:
-   - De PDF inhoud is als base64 data verstrekt
-   - Extraheer ALLE tekst uit het PDF bestand
-   - Lees alle pagina's als er meerdere zijn
-   - Zoek naar transactietabellen, lijsten, of andere formaten
+3. PDF VERWERKING: Voor PDF bestanden wordt de inhoud als base64 data verstrekt. Analyseer deze data om alle transacties te extraheren.
 
 4. TRANSACTIE IDENTIFICATIE:
    - Zoek naar datums (DD-MM-YYYY, DD/MM/YYYY, etc.)

@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
-import { callChatGPTAPI, callGitHubChatGPTAPI } from './apiService';
+import { callChatGPTAPI } from './apiService';
 
 interface ReceiptData {
   name?: string;
@@ -22,8 +22,7 @@ type CoreMessage =
 
 export const processReceiptImages = async (
   imageUris: string[],
-  apiKey?: string,
-  useGithubAPI: boolean = false
+  apiKey?: string
 ): Promise<ReceiptData | null> => {
   try {
     if (imageUris.length === 0) {
@@ -32,24 +31,16 @@ export const processReceiptImages = async (
 
     // API key is required
     if (!apiKey) {
-      throw new Error('Geen API sleutel beschikbaar');
+      throw new Error('Geen ChatGPT API sleutel beschikbaar. Voeg je API sleutel toe in de instellingen.');
     }
 
-    const apiType = useGithubAPI ? 'GitHub API' : 'OpenAI API';
-    console.log(`Processing ${imageUris.length} receipt images with ${apiType}...`);
+    console.log(`Processing ${imageUris.length} receipt images with ChatGPT API...`);
 
-    // For GitHub API, limit to single image and compress to avoid token limit
-    const imagesToProcess = useGithubAPI ? imageUris.slice(0, 1) : imageUris;
-    
-    if (useGithubAPI && imageUris.length > 1) {
-      console.log('GitHub API: Processing only the first image due to token limits');
-    }
-
-    // Convert images to base64 with compression for GitHub API
+    // Convert images to base64
     const base64Images = await Promise.all(
-      imagesToProcess.map(async (uri, index) => {
-        console.log(`Converting image ${index + 1}/${imagesToProcess.length} to base64...`);
-        const base64 = await fileToBase64(uri, useGithubAPI);
+      imageUris.map(async (uri, index) => {
+        console.log(`Converting image ${index + 1}/${imageUris.length} to base64...`);
+        const base64 = await fileToBase64(uri);
         if (!base64) {
           throw new Error(`Kon afbeelding ${index + 1} niet converteren: ${uri}`);
         }
@@ -57,18 +48,8 @@ export const processReceiptImages = async (
       })
     );
     
-    // Estimate token usage for GitHub API
-    if (useGithubAPI) {
-      const estimatedTokens = estimateTokenUsage(base64Images);
-      console.log(`Estimated tokens: ${estimatedTokens}`);
-      
-      if (estimatedTokens > 7000) { // Leave some buffer
-        throw new Error('Afbeelding is te groot voor GitHub API. Probeer een kleinere afbeelding of gebruik de OpenAI API.');
-      }
-    }
-    
     const contentParts: ContentPart[] = [
-      { type: 'text', text: `Analyseer ${imagesToProcess.length > 1 ? 'deze bonnen/facturen' : 'deze bon/factuur'} en extraheer de volgende informatie:` }
+      { type: 'text', text: `Analyseer ${imageUris.length > 1 ? 'deze bonnen/facturen' : 'deze bon/factuur'} en extraheer de volgende informatie:` }
     ];
 
     // Add all images to the content
@@ -86,9 +67,9 @@ export const processReceiptImages = async (
     const messages: CoreMessage[] = [
       {
         role: 'system',
-        content: `Je bent een expert in het lezen van bonnen en facturen. Analyseer ${imagesToProcess.length > 1 ? 'alle afbeeldingen' : 'de afbeelding'} en extraheer de belangrijkste informatie.
+        content: `Je bent een expert in het lezen van bonnen en facturen. Analyseer ${imageUris.length > 1 ? 'alle afbeeldingen' : 'de afbeelding'} en extraheer de belangrijkste informatie.
 
-${imagesToProcess.length > 1 ? 
+${imageUris.length > 1 ? 
   'Als er meerdere bonnen zijn, combineer de bedragen tot één totaal. Gebruik de naam van de belangrijkste/grootste uitgave.' : 
   'Extraheer de informatie van deze ene bon.'
 }
@@ -115,11 +96,9 @@ Retourneer alleen het JSON object, geen andere tekst.`,
       },
     ];
     
-    console.log(`Sending request to ${apiType}...`);
-    const data = useGithubAPI 
-      ? await callGitHubChatGPTAPI(messages, apiKey)
-      : await callChatGPTAPI(messages, apiKey);
-    console.log(`Received response from ${apiType}`);
+    console.log('Sending request to ChatGPT API...');
+    const data = await callChatGPTAPI(messages, apiKey);
+    console.log('Received response from ChatGPT API');
     
     if (data.completion) {
       try {
@@ -143,18 +122,11 @@ Retourneer alleen het JSON object, geen andere tekst.`,
   } catch (error) {
     console.error('Error processing receipt images:', error);
     
-    // Handle specific GitHub API token limit error
-    if ((error as Error).message.includes('Request body too large') || 
-        (error as Error).message.includes('Max size: 8000 tokens')) {
-      throw new Error('Afbeelding is te groot voor GitHub API. Probeer een kleinere afbeelding of gebruik de OpenAI API in de instellingen.');
-    }
-    
     // Re-throw with user-friendly message if it's our custom error
     if ((error as Error).message.includes('te veel verzoeken') || 
         (error as Error).message.includes('API sleutel') ||
         (error as Error).message.includes('Toegang geweigerd') ||
-        (error as Error).message.includes('server is tijdelijk') ||
-        (error as Error).message.includes('te groot voor GitHub API')) {
+        (error as Error).message.includes('server is tijdelijk')) {
       throw error;
     }
     
@@ -171,93 +143,83 @@ export const processReceiptImage = async (
   return processReceiptImages([imageUri], apiKey);
 };
 
-// New function to process PDFs
+// Function to process PDFs using ChatGPT API
 export const processPDF = async (
   pdfUri: string,
   apiKey?: string
 ): Promise<ReceiptData | null> => {
   try {
-    console.log('Processing PDF...');
+    if (!apiKey) {
+      throw new Error('Geen ChatGPT API sleutel beschikbaar. Voeg je API sleutel toe in de instellingen.');
+    }
+
+    console.log('Processing PDF with ChatGPT API...');
     
-    // PDFs are not supported without local AI
-    throw new Error('PDF verwerking is niet beschikbaar');
+    const base64 = await fileToBase64(pdfUri);
+    if (!base64) {
+      throw new Error('Kon PDF niet converteren');
+    }
+
+    const messages: CoreMessage[] = [
+      {
+        role: 'system',
+        content: `Je bent een expert in het lezen van bonnen en facturen in PDF formaat. Analyseer de PDF en extraheer de belangrijkste informatie.
+
+Extraheer:
+1. Bedrijfsnaam/leverancier
+2. Totaal bedrag
+3. BTW tarief (schat in op basis van het type aankoop)
+4. Datum
+
+Retourneer je antwoord als een JSON object:
+{
+  "name": "Bedrijfsnaam",
+  "amount": 123.45,
+  "vatRate": 21,
+  "date": "YYYY-MM-DD"
+}
+
+Retourneer alleen het JSON object, geen andere tekst.`,
+      },
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: 'Analyseer deze PDF bon/factuur:' },
+          { type: 'text', text: `PDF data: ${base64}` }
+        ],
+      },
+    ];
     
+    const data = await callChatGPTAPI(messages, apiKey);
+    
+    if (data.completion) {
+      try {
+        const jsonStart = data.completion.indexOf('{');
+        const jsonEnd = data.completion.lastIndexOf('}') + 1;
+        
+        if (jsonStart >= 0 && jsonEnd > jsonStart) {
+          const jsonStr = data.completion.substring(jsonStart, jsonEnd);
+          const result = JSON.parse(jsonStr);
+          console.log('Successfully parsed PDF receipt data:', result);
+          return result;
+        }
+      } catch (parseError) {
+        console.error('Error parsing JSON from AI response:', parseError);
+        throw new Error('Kon de PDF informatie niet verwerken. Probeer het opnieuw.');
+      }
+    }
+    
+    throw new Error('Geen bruikbare informatie gevonden in de PDF.');
   } catch (error) {
     console.error('Error processing PDF:', error);
     throw error;
   }
 };
 
-// Estimate token usage for base64 images (rough approximation)
-const estimateTokenUsage = (base64Images: string[]): number => {
-  let totalTokens = 500; // Base tokens for system message and text
-  
-  base64Images.forEach(base64 => {
-    // Remove data URL prefix to get actual base64 length
-    const base64Data = base64.split(',')[1] || base64;
-    // Rough approximation: 1 token per 4 characters of base64
-    const imageTokens = Math.ceil(base64Data.length / 4);
-    totalTokens += imageTokens;
-  });
-  
-  return totalTokens;
-};
-
-// Compress image for GitHub API to reduce token usage
-const compressImageForGitHubAPI = async (base64: string): Promise<string> => {
+const fileToBase64 = async (uri: string): Promise<string | null> => {
   try {
     if (Platform.OS === 'web') {
-      return new Promise((resolve) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          
-          // Reduce image size for GitHub API
-          const maxWidth = 800;
-          const maxHeight = 800;
-          
-          let { width, height } = img;
-          
-          if (width > height) {
-            if (width > maxWidth) {
-              height = (height * maxWidth) / width;
-              width = maxWidth;
-            }
-          } else {
-            if (height > maxHeight) {
-              width = (width * maxHeight) / height;
-              height = maxHeight;
-            }
-          }
-          
-          canvas.width = width;
-          canvas.height = height;
-          
-          ctx?.drawImage(img, 0, 0, width, height);
-          
-          // Compress with lower quality for GitHub API
-          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
-          resolve(compressedBase64);
-        };
-        img.src = base64;
-      });
-    } else {
-      // For native, return as-is for now (could implement native compression)
-      return base64;
-    }
-  } catch (error) {
-    console.error('Error compressing image:', error);
-    return base64; // Return original if compression fails
-  }
-};
-
-const fileToBase64 = async (uri: string, compressForGitHub: boolean = false): Promise<string | null> => {
-  try {
-    let base64: string;
-    
-    if (Platform.OS === 'web') {
-      base64 = await fetchImageAsBase64(uri);
+      return await fetchFileAsBase64(uri);
     } else {
       const fileBase64 = await FileSystem.readAsStringAsync(uri, {
         encoding: FileSystem.EncodingType.Base64,
@@ -265,22 +227,15 @@ const fileToBase64 = async (uri: string, compressForGitHub: boolean = false): Pr
       
       // Determine MIME type based on file extension
       const mimeType = getMimeType(uri);
-      base64 = `data:${mimeType};base64,${fileBase64}`;
+      return `data:${mimeType};base64,${fileBase64}`;
     }
-    
-    // Compress for GitHub API if requested
-    if (compressForGitHub) {
-      base64 = await compressImageForGitHubAPI(base64);
-    }
-    
-    return base64;
   } catch (error) {
     console.error('Error converting file to base64:', error);
     return null;
   }
 };
 
-const fetchImageAsBase64 = async (uri: string): Promise<string> => {
+const fetchFileAsBase64 = async (uri: string): Promise<string> => {
   const response = await fetch(uri);
   const blob = await response.blob();
   
@@ -296,6 +251,8 @@ const getMimeType = (uri: string): string => {
   const extension = uri.split('.').pop()?.toLowerCase();
   
   switch (extension) {
+    case 'pdf':
+      return 'application/pdf';
     case 'jpg':
     case 'jpeg':
       return 'image/jpeg';

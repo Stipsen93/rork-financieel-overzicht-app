@@ -13,19 +13,16 @@ import { useFinanceStore } from '@/store/financeStore';
 import Colors from '@/constants/colors';
 
 export default function ProfileScreen() {
-  const { apiKey, setApiKey, useApi, githubToken, setGithubToken, useGithubApi } = useFinanceStore();
+  const { apiKey, setApiKey, useApi } = useFinanceStore();
   const [inputApiKey, setInputApiKey] = useState(apiKey || '');
-  const [inputGithubToken, setInputGithubToken] = useState(githubToken || '');
+
   
   const handleSaveApiKey = () => {
     setApiKey(inputApiKey.trim());
     Alert.alert('Succes', 'ChatGPT API sleutel succesvol opgeslagen');
   };
   
-  const handleSaveGithubToken = () => {
-    setGithubToken(inputGithubToken.trim());
-    Alert.alert('Succes', 'GitHub token succesvol opgeslagen');
-  };
+
   
   return (
     <ScrollView style={styles.container}>
@@ -79,42 +76,7 @@ export default function ProfileScreen() {
         )}
       </View>
       
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>GitHub ChatGPT API Instellingen</Text>
-        <Text style={styles.description}>
-          Voer je GitHub token in om de GitHub ChatGPT API te gebruiken voor het verwerken van bonnen en facturen.
-          Dit is een alternatief voor de OpenAI API.
-        </Text>
-        
-        <Text style={styles.label}>GitHub Token</Text>
-        <TextInput
-          style={styles.input}
-          value={inputGithubToken}
-          onChangeText={setInputGithubToken}
-          placeholder="Voer je GitHub token in (ghp_...)"
-          secureTextEntry
-          autoCapitalize="none"
-        />
-        
-        <TouchableOpacity
-          style={styles.saveButton}
-          onPress={handleSaveGithubToken}
-        >
-          <Text style={styles.saveButtonText}>GitHub Token Opslaan</Text>
-        </TouchableOpacity>
-        
-        {githubToken && (
-          <View style={styles.statusContainer}>
-            <Text style={styles.statusText}>✓ GitHub token is ingesteld</Text>
-            <Text style={styles.statusDescription}>
-              {useGithubApi 
-                ? 'Je kunt nu foto\'s van bonnen, facturen en bankafschriften scannen met GitHub AI.' 
-                : 'GitHub API is uitgeschakeld. Schakel het in via Voorkeuren om de scan functionaliteit te gebruiken.'
-              }
-            </Text>
-          </View>
-        )}
-      </View>
+
       
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Hoe werkt het?</Text>
@@ -138,12 +100,7 @@ export default function ProfileScreen() {
           4. Maak een nieuwe API sleutel aan{'\n'}
           5. Kopieer de sleutel en plak deze hierboven{'\n\n'}
           
-          <Text style={styles.boldText}>GitHub ChatGPT API:</Text>{'\n'}
-          1. Ga naar GitHub (github.com){'\n'}
-          2. Log in op je account{'\n'}
-          3. Ga naar Settings &gt; Developer settings &gt; Personal access tokens{'\n'}
-          4. Maak een nieuwe token aan met AI model toegang{'\n'}
-          5. Kopieer de token (begint met ghp_) en plak deze hierboven
+
         </Text>
       </View>
       
@@ -160,7 +117,7 @@ export default function ProfileScreen() {
         <Text style={styles.sectionTitle}>Privacy</Text>
         <Text style={styles.description}>
           Je financiële gegevens worden lokaal op je apparaat opgeslagen. Bon afbeeldingen
-          en bankafschriften worden verwerkt via de gekozen API (OpenAI of GitHub) en worden niet permanent opgeslagen op
+          en bankafschriften worden verwerkt via de OpenAI API en worden niet permanent opgeslagen op
           externe servers.
         </Text>
       </View>

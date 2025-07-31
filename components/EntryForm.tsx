@@ -50,7 +50,7 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
   const [category, setCategory] = useState<'zakelijke-uitgaven' | 'kantoorkosten' | 'reiskosten' | 'apparatuur-computers' | 'bedrijfsuitje' | 'autokosten' | 'overige-kosten'>('overige-kosten');
   
   const cameraRef = useRef<CameraView>(null);
-  const { addIncome, addExpense, updateIncome, updateExpense, removeIncome, removeExpense, apiKey, useApi, dateSelection, incomes, expenses } = useFinanceStore();
+  const { addIncome, addExpense, updateIncome, updateExpense, removeIncome, removeExpense, apiKey, useApi, dateSelection, incomes, expenses, customCategories } = useFinanceStore();
   
   useEffect(() => {
     if (visible) {
@@ -473,37 +473,36 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
                 )}
               </View>
               
-              <Text style={styles.label}>Bedrag (€)</Text>
-              <TextInput
-                style={styles.input}
-                value={amount}
-                onChangeText={setAmount}
-                placeholder="0,00"
-                placeholderTextColor={Colors.lightText}
-                keyboardType="decimal-pad"
-              />
-              
-              <Text style={styles.label}>BTW Tarief (%)</Text>
-              <View style={styles.vatRateContainer}>
-                {[21, 9, 0].map((rate) => (
-                  <TouchableOpacity
-                    key={rate}
-                    style={[
-                      styles.vatRateButton,
-                      parseInt(vatRate) === rate && styles.vatRateButtonActive,
-                    ]}
-                    onPress={() => setVatRate(rate.toString())}
-                  >
-                    <Text
-                      style={[
-                        styles.vatRateText,
-                        parseInt(vatRate) === rate && styles.vatRateTextActive,
-                      ]}
+              <View style={styles.amountVatContainer}>
+                <View style={styles.amountContainer}>
+                  <Text style={styles.label}>Bedrag (€)</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={amount}
+                    onChangeText={setAmount}
+                    placeholder="0,00"
+                    placeholderTextColor={Colors.lightText}
+                    keyboardType="decimal-pad"
+                  />
+                </View>
+                
+                <View style={styles.vatContainer}>
+                  <Text style={styles.label}>BTW (%)</Text>
+                  <View style={styles.vatDropdownContainer}>
+                    <TouchableOpacity
+                      style={styles.vatDropdown}
+                      onPress={() => {
+                        // Cycle through VAT rates
+                        const rates = [21, 9, 0];
+                        const currentIndex = rates.indexOf(parseInt(vatRate));
+                        const nextIndex = (currentIndex + 1) % rates.length;
+                        setVatRate(rates[nextIndex].toString());
+                      }}
                     >
-                      {rate}%
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                      <Text style={styles.vatDropdownText}>{vatRate}%</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
               </View>
               
               {/* Category Selection - Only for expenses */}
@@ -543,6 +542,25 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
                         </Text>
                       </TouchableOpacity>
                     ))}
+                    {customCategories.map((cat) => (
+                      <TouchableOpacity
+                        key={cat}
+                        style={[
+                          styles.categoryButton,
+                          category === cat && styles.categoryButtonActive,
+                        ]}
+                        onPress={() => setCategory(cat as typeof category)}
+                      >
+                        <Text
+                          style={[
+                            styles.categoryText,
+                            category === cat && styles.categoryTextActive,
+                          ]}
+                        >
+                          {cat}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
                   </ScrollView>
                 </>
               )}
@@ -575,22 +593,14 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
                   onPress={openCamera}
                 >
                   <Camera size={16} color={Colors.text} />
-                  <Text style={styles.imageButtonText}>Foto&apos;s</Text>
+                  <Text style={styles.imageButtonText}>Foto maken</Text>
                 </TouchableOpacity>
                 
                 <TouchableOpacity
                   style={styles.imageButton}
                   onPress={pickImages}
                 >
-                  <Text style={styles.imageButtonText}>Afbeeldingen</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={styles.imageButton}
-                  onPress={pickPDF}
-                >
-                  <FileText size={16} color={Colors.text} />
-                  <Text style={styles.imageButtonText}>PDF</Text>
+                  <Text style={styles.imageButtonText}>Bonnetje</Text>
                 </TouchableOpacity>
               </View>
               
@@ -792,31 +802,32 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     color: Colors.text,
   },
-  vatRateContainer: {
+  amountVatContainer: {
     flexDirection: 'row',
     marginBottom: 16,
+    gap: 12,
   },
-  vatRateButton: {
+  amountContainer: {
+    flex: 2,
+  },
+  vatContainer: {
     flex: 1,
+  },
+  vatDropdownContainer: {
+    marginBottom: 16,
+  },
+  vatDropdown: {
     backgroundColor: Colors.card,
     borderWidth: 1,
     borderColor: Colors.border,
-    padding: 12,
-    marginRight: 8,
     borderRadius: 8,
+    padding: 12,
     alignItems: 'center',
   },
-  vatRateButtonActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primaryDark,
-  },
-  vatRateText: {
+  vatDropdownText: {
     fontSize: 16,
     color: Colors.text,
-  },
-  vatRateTextActive: {
-    color: Colors.text,
-    fontWeight: 'bold',
+    fontWeight: '500',
   },
   datePickerButton: {
     flexDirection: 'row',

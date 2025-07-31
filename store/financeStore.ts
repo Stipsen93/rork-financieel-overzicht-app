@@ -20,6 +20,7 @@ interface FinanceState {
   showStartingCapital: boolean;
   incomeDisplayMode: 'both' | 'inclVat' | 'exVat';
   language: Language;
+  customCategories: string[];
   
   // Actions
   addIncome: (income: Omit<FinanceEntry, 'id' | 'vatAmount'>) => void;
@@ -43,6 +44,8 @@ interface FinanceState {
   setStartingCapital: (amount: number) => void;
   setShowStartingCapital: (show: boolean) => void;
   setIncomeDisplayMode: (mode: 'both' | 'inclVat' | 'exVat') => void;
+  addCustomCategory: (category: string) => void;
+  removeCustomCategory: (category: string) => void;
   resetAllData: () => void;
   restoreFromBackup: (data: { incomes: FinanceEntry[]; expenses: FinanceEntry[]; startingCapital?: number }) => void;
 }
@@ -120,6 +123,7 @@ export const useFinanceStore = create<FinanceState>()(
       lastAutoBackup: null,
       showStartingCapital: false, // Default to not showing starting capital
       incomeDisplayMode: 'both', // Default to showing both columns
+      customCategories: [], // Default to no custom categories
       
       addIncome: (income) => {
         const state = get();
@@ -379,6 +383,18 @@ export const useFinanceStore = create<FinanceState>()(
       
       setIncomeDisplayMode: (mode) => {
         set({ incomeDisplayMode: mode });
+      },
+      
+      addCustomCategory: (category) => {
+        set((state) => ({
+          customCategories: [...state.customCategories, category],
+        }));
+      },
+      
+      removeCustomCategory: (category) => {
+        set((state) => ({
+          customCategories: state.customCategories.filter(cat => cat !== category),
+        }));
       },
       
       resetAllData: () => {

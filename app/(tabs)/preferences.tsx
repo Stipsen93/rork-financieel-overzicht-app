@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,10 +6,11 @@ import {
   TouchableOpacity,
   ScrollView,
   Switch,
-
+  TextInput,
+  Alert,
 } from 'react-native';
 import { Stack } from 'expo-router';
-import { Settings, DollarSign, Eye, Key, Globe } from 'lucide-react-native';
+import { Settings, DollarSign, Eye, Key, Globe, Plus, X, Tag } from 'lucide-react-native';
 import { useFinanceStore } from '@/store/financeStore';
 import Colors from '@/constants/colors';
 import { getTranslation } from '@/constants/translations';
@@ -24,12 +25,15 @@ export default function PreferencesScreen() {
     incomeDisplayMode,
     setIncomeDisplayMode,
     language,
-    setLanguage
+    setLanguage,
+    customCategories,
+    addCustomCategory,
+    removeCustomCategory
   } = useFinanceStore();
   
-  const t = (key: keyof typeof import('@/constants/translations').translations.nl) => getTranslation(language, key);
+  const [newCategory, setNewCategory] = useState('');
   
-
+  const t = (key: keyof typeof import('@/constants/translations').translations.nl) => getTranslation(language, key);
   
   const getDisplayModeText = (mode: 'both' | 'inclVat' | 'exVat') => {
     switch (mode) {
@@ -38,6 +42,36 @@ export default function PreferencesScreen() {
       case 'exVat': return t('onlyExVat');
       default: return t('bothColumns');
     }
+  };
+  
+  const handleAddCategory = () => {
+    if (!newCategory.trim()) {
+      Alert.alert('Fout', 'Voer een categorie naam in');
+      return;
+    }
+    
+    if (customCategories.includes(newCategory.trim())) {
+      Alert.alert('Fout', 'Deze categorie bestaat al');
+      return;
+    }
+    
+    addCustomCategory(newCategory.trim());
+    setNewCategory('');
+  };
+  
+  const handleRemoveCategory = (category: string) => {
+    Alert.alert(
+      'Categorie Verwijderen',
+      `Weet je zeker dat je de categorie "${category}" wilt verwijderen?`,
+      [
+        { text: 'Annuleren', style: 'cancel' },
+        { 
+          text: 'Verwijderen', 
+          style: 'destructive',
+          onPress: () => removeCustomCategory(category)
+        }
+      ]
+    );
   };
   
 
@@ -206,6 +240,54 @@ export default function PreferencesScreen() {
         </View>
       </View>
       
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Aangepaste Categorieën</Text>
+        
+        <View style={styles.preferenceItem}>
+          <View style={styles.preferenceContent}>
+            <View style={styles.preferenceHeader}>
+              <Tag size={24} color={Colors.text} />
+              <Text style={styles.preferenceTitle}>Categorieën Beheren</Text>
+            </View>
+            <Text style={styles.preferenceDescription}>
+              Voeg aangepaste categorieën toe voor uitgaven. Deze worden automatisch meegenomen in rapporten.
+            </Text>
+          </View>
+        </View>
+        
+        <View style={styles.addCategoryContainer}>
+          <TextInput
+            style={styles.categoryInput}
+            value={newCategory}
+            onChangeText={setNewCategory}
+            placeholder="Nieuwe categorie naam"
+            placeholderTextColor={Colors.lightText}
+          />
+          <TouchableOpacity
+            style={styles.addCategoryButton}
+            onPress={handleAddCategory}
+          >
+            <Plus size={20} color={Colors.secondary} />
+          </TouchableOpacity>
+        </View>
+        
+        {customCategories.length > 0 && (
+          <View style={styles.categoriesList}>
+            {customCategories.map((category, index) => (
+              <View key={index} style={styles.categoryItem}>
+                <Text style={styles.categoryItemText}>{category}</Text>
+                <TouchableOpacity
+                  style={styles.removeCategoryButton}
+                  onPress={() => handleRemoveCategory(category)}
+                >
+                  <X size={16} color={Colors.danger} />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
+      </View>
+      
       <View style={styles.infoSection}>
         <Text style={styles.infoTitle}>{t('aboutPreferences')}</Text>
         <Text style={styles.infoText}>
@@ -360,5 +442,48 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontWeight: '500',
   },
-
+  addCategoryContainer: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    gap: 8,
+  },
+  categoryInput: {
+    flex: 1,
+    backgroundColor: Colors.background,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: Colors.text,
+  },
+  addCategoryButton: {
+    backgroundColor: Colors.primary,
+    borderRadius: 8,
+    padding: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 48,
+  },
+  categoriesList: {
+    gap: 8,
+  },
+  categoryItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: Colors.background,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 8,
+    padding: 12,
+  },
+  categoryItemText: {
+    fontSize: 16,
+    color: Colors.text,
+    flex: 1,
+  },
+  removeCategoryButton: {
+    padding: 4,
+  },
 });

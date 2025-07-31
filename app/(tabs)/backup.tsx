@@ -9,15 +9,17 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Stack } from 'expo-router';
-import { Save, Download, Clock, CheckCircle, Share, Upload } from 'lucide-react-native';
+import { Save, Download, Clock, CheckCircle, Share, FolderOpen } from 'lucide-react-native';
 import { useFinanceStore } from '@/store/financeStore';
 import Colors from '@/constants/colors';
 import { createBackup, restoreBackup, getLastBackupDate, shareBackup, importBackup } from '@/utils/backupService';
+import * as DocumentPicker from 'expo-document-picker';
 
 export default function BackupScreen() {
   const [isCreatingBackup, setIsCreatingBackup] = useState(false);
   const [isRestoringBackup, setIsRestoringBackup] = useState(false);
   const [isSharingBackup, setIsSharingBackup] = useState(false);
+  const [isImportingBackup, setIsImportingBackup] = useState(false);
   const [lastBackupDate, setLastBackupDate] = useState<Date | null>(null);
   const { 
     incomes, 
@@ -111,6 +113,51 @@ export default function BackupScreen() {
       Alert.alert('Fout', 'Kon back-up niet herstellen. Probeer het opnieuw.');
     } finally {
       setIsRestoringBackup(false);
+    }
+  };
+  
+  const handleImportBackup = async () => {
+    setIsImportingBackup(true);
+    
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/json',
+        copyToCacheDirectory: true,
+      });
+      
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        
+        try {
+          const success = await importBackup(asset.uri);
+          
+          if (success) {
+            Alert.alert(
+              'Back-up Geïmporteerd',
+              'Je back-up bestand is succesvol geïmporteerd. Je gegevens zijn hersteld.',
+              [
+                {
+                  text: 'OK',
+                  onPress: () => {
+                    // Force a re-render by reloading the page/component
+                    // The restored data will be automatically loaded from AsyncStorage
+                  }
+                }
+              ]
+            );
+          } else {
+            Alert.alert('Fout', 'Het geselecteerde bestand is geen geldig back-up bestand.');
+          }
+        } catch (error) {
+          console.error('Error importing backup:', error);
+          Alert.alert('Fout', 'Kon back-up bestand niet importeren. Controleer of het bestand geldig is.');
+        }
+      }
+    } catch (error) {
+      console.error('Error picking backup file:', error);
+      Alert.alert('Fout', 'Kon bestand niet selecteren.');
+    } finally {
+      setIsImportingBackup(false);
     }
   };
   
@@ -323,6 +370,27 @@ export default function BackupScreen() {
               <Text style={styles.restoreButtonText}>
                 {lastBackupDate ? 'Back-up Herstellen' : 'Geen Back-up Beschikbaar'}
               </Text>
+            </View>
+          )}
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={[
+            styles.importButton,
+            isImportingBackup && styles.importButtonDisabled
+          ]}
+          onPress={handleImportBackup}
+          disabled={isImportingBackup}
+        >
+          {isImportingBackup ? (
+            <View style={styles.buttonContent}>
+              <ActivityIndicator size="small" color={Colors.secondary} />
+              <Text style={styles.importButtonText}>Importeren...</Text>
+            </View>
+          ) : (
+            <View style={styles.buttonContent}>
+              <FolderOpen size={20} color={Colors.secondary} />
+              <Text style={styles.importButtonText}>Bestand Zoeken</Text>
             </View>
           )}
         </TouchableOpacity>
@@ -590,6 +658,27 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   shareButtonText: {
+    color: Colors.secondary,
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
+  importButton: {
+    backgroundColor: Colors.success,
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    marginTop: 12,
+  },
+  importButtonDisabled: {
+    opacity: 0.7,
+  },
+  importButtonText: {
     color: Colors.secondary,
     fontSize: 16,
     fontWeight: 'bold',

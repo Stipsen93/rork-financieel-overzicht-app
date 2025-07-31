@@ -3,82 +3,70 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
   ScrollView,
-  Platform,
 } from 'react-native';
 import { Stack } from 'expo-router';
 import { useFinanceStore } from '@/store/financeStore';
 import Colors from '@/constants/colors';
 import YearPicker from '@/components/YearPicker';
 import { filterEntriesByYear } from '@/utils/finance';
-import { generateAnnualReport } from '@/utils/annualReportService';
-import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
 
 export default function AnnualReportScreen() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [isGenerating, setIsGenerating] = useState(false);
-  const { incomes, expenses, apiKey } = useFinanceStore();
+  const { incomes, expenses, customCategories } = useFinanceStore();
   
-  const handleGenerateReport = async () => {
-    if (!apiKey) {
-      Alert.alert('API Sleutel Ontbreekt', 'Stel je ChatGPT API sleutel in bij profiel instellingen');
-      return;
-    }
-    
+  const calculateProfitLoss = () => {
     const yearIncomes = filterEntriesByYear(incomes, selectedYear);
     const yearExpenses = filterEntriesByYear(expenses, selectedYear);
     
-    if (yearIncomes.length === 0 && yearExpenses.length === 0) {
-      Alert.alert('Geen Gegevens', 'Er zijn geen inkomsten of uitgaven voor dit jaar');
-      return;
-    }
+    const totalIncome = yearIncomes.reduce((sum, income) => sum + income.amount, 0);
+    const totalExpenses = yearExpenses.reduce((sum, expense) => sum + expense.amount, 0);
     
-    setIsGenerating(true);
+    // Group expenses by category
+    const expensesByCategory: { [key: string]: number } = {};
     
-    try {
-      const reportText = await generateAnnualReport(yearIncomes, yearExpenses, selectedYear, apiKey);
-      
-      if (Platform.OS === 'web') {
-        // For web, create a download link for text file
-        const blob = new Blob([reportText], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `Jaarrekening_${selectedYear}.txt`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        Alert.alert('Succes', 'Jaarrekening gedownload!');
-      } else {
-        // For mobile, save to device and share
-        const fileName = `Jaarrekening_${selectedYear}.txt`;
-        const fileUri = `${FileSystem.documentDirectory}${fileName}`;
-        
-        await FileSystem.writeAsStringAsync(fileUri, reportText, {
-          encoding: FileSystem.EncodingType.UTF8,
-        });
-        
-        if (await Sharing.isAvailableAsync()) {
-          await Sharing.shareAsync(fileUri, {
-            mimeType: 'text/plain',
-            dialogTitle: 'Jaarrekening delen',
-          });
-        } else {
-          Alert.alert('Succes', `Jaarrekening opgeslagen in: ${fileName}`);
-        }
-      }
-    } catch (error) {
-      console.error('Error generating annual report:', error);
-      Alert.alert('Fout', 'Kon jaarrekening niet genereren. Controleer je internetverbinding en API sleutel.');
-    } finally {
-      setIsGenerating(false);
-    }
+    // Initialize with default categories
+    expensesByCategory['zakelijke-uitgaven'] = 0;
+    expensesByCategory['kantoorkosten'] = 0;
+    expensesByCategory['reiskosten'] = 0;
+    expensesByCategory['apparatuur-computers'] = 0;
+    expensesByCategory['bedrijfsuitje'] = 0;
+    expensesByCategory['autokosten'] = 0;
+    expensesByCategory['overige-kosten'] = 0;
+    
+    // Initialize custom categories
+    customCategories.forEach(category => {
+      expensesByCategory[category] = 0;
+    });
+    
+    yearExpenses.forEach(expense => {
+      const category = expense.category || 'overige-kosten';
+      expensesByCategory[category] = (expensesByCategory[category] || 0) + expense.amount;
+    });
+    
+    return {
+      totalIncome,
+      totalExpenses,
+      expensesByCategory,
+      netProfit: totalIncome - totalExpenses
+    };
   };
+  
+  const getCategoryDisplayName = (category: string) => {
+    const categoryNames: { [key: string]: string } = {
+      'zakelijke-uitgaven': 'Zakelijke uitgaven',
+      'kantoorkosten': 'Kantoorkosten',
+      'reiskosten': 'Reiskosten',
+      'apparatuur-computers': 'Apparatuur & computers',
+      'bedrijfsuitje': 'Bedrijfsuitje',
+      'autokosten': 'Autokosten',
+      'overige-kosten': 'Overige kosten'
+    };
+    
+    return categoryNames[category] || category;
+  };
+  
+  const profitLoss = calculateProfitLoss();
   
   return (
     <ScrollView style={styles.container}>
@@ -96,9 +84,9 @@ export default function AnnualReportScreen() {
       />
       
       <View style={styles.header}>
-        <Text style={styles.title}>Jaarrekening Genereren</Text>
+        <Text style={styles.title}>Winst en Verlies Overzicht</Text>
         <Text style={styles.subtitle}>
-          Selecteer een jaar om een complete jaarrekening te genereren met ChatGPT AI
+          Bekijk je winst en verlies overzicht per jaar
         </Text>
       </View>
       
@@ -110,57 +98,61 @@ export default function AnnualReportScreen() {
         />
       </View>
       
-      <View style={styles.summaryContainer}>
-        <Text style={styles.summaryTitle}>Overzicht {selectedYear}</Text>
+      <View style={styles.profitLossContainer}>
+        <Text style={styles.profitLossTitle}>Winst en Verlies {selectedYear}</Text>
         
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Inkomsten:</Text>
-          <Text style={styles.summaryValue}>
-            {filterEntriesByYear(incomes, selectedYear).length} posten
-          </Text>
+        <View style={styles.incomeSection}>
+          <Text style={styles.sectionTitle}>Inkomsten</Text>
+          <View style={styles.amountRow}>
+            <Text style={styles.amountLabel}>Totale Inkomsten</Text>
+            <Text style={styles.amountValue}>€ {profitLoss.totalIncome.toFixed(2)}</Text>
+          </View>
         </View>
         
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Uitgaven:</Text>
-          <Text style={styles.summaryValue}>
-            {filterEntriesByYear(expenses, selectedYear).length} posten
-          </Text>
+        <View style={styles.expenseSection}>
+          <Text style={styles.sectionTitle}>Uitgaven</Text>
+          {Object.entries(profitLoss.expensesByCategory)
+            .filter(([_, amount]) => amount > 0)
+            .map(([category, amount]) => (
+              <View key={category} style={styles.amountRow}>
+                <Text style={styles.amountLabel}>{getCategoryDisplayName(category)}</Text>
+                <Text style={styles.amountValue}>€ {amount.toFixed(2)}</Text>
+              </View>
+            ))
+          }
+          <View style={styles.divider} />
+          <View style={styles.amountRow}>
+            <Text style={styles.totalLabel}>Totale Uitgaven</Text>
+            <Text style={styles.totalValue}>€ {profitLoss.totalExpenses.toFixed(2)}</Text>
+          </View>
+        </View>
+        
+        <View style={styles.netProfitSection}>
+          <View style={styles.divider} />
+          <View style={styles.amountRow}>
+            <Text style={styles.netProfitLabel}>Netto Resultaat</Text>
+            <Text style={[
+              styles.netProfitValue,
+              { color: profitLoss.netProfit >= 0 ? Colors.success : Colors.danger }
+            ]}>
+              € {profitLoss.netProfit.toFixed(2)}
+            </Text>
+          </View>
         </View>
       </View>
       
-      <TouchableOpacity
-        style={[
-          styles.generateButton,
-          isGenerating && styles.generateButtonDisabled
-        ]}
-        onPress={handleGenerateReport}
-        disabled={isGenerating}
-      >
-        {isGenerating ? (
-          <View style={styles.generatingContainer}>
-            <ActivityIndicator size="small" color={Colors.secondary} />
-            <Text style={styles.generateButtonText}>Genereren...</Text>
-          </View>
-        ) : (
-          <Text style={styles.generateButtonText}>Genereer Jaarrekening</Text>
-        )}
-      </TouchableOpacity>
+
       
       <View style={styles.infoContainer}>
-        <Text style={styles.infoTitle}>Wat wordt er gegenereerd?</Text>
+        <Text style={styles.infoTitle}>Overzicht Informatie</Text>
         <Text style={styles.infoText}>
-          • Alle inkomsten onder "Brutowinst"{'\n'}
-          • Uitgaven gecategoriseerd in:{'\n'}
-          &nbsp;&nbsp;- Tanken{'\n'}
-          &nbsp;&nbsp;- Bankkosten{'\n'}
-          &nbsp;&nbsp;- Autogarage kosten{'\n'}
-          &nbsp;&nbsp;- Verzekeringen{'\n'}
-          &nbsp;&nbsp;- Telefoonkosten{'\n'}
-          &nbsp;&nbsp;- Overige kosten{'\n'}
-          • BTW overzicht{'\n'}
-          • Netto resultaat{'\n'}
+          Dit overzicht toont je winst en verlies voor het geselecteerde jaar:{'\n'}
           {'\n'}
-          Het rapport wordt gegenereerd als tekstbestand dat je kunt delen of opslaan.
+          • Totale inkomsten voor het jaar{'\n'}
+          • Uitgaven per categorie{'\n'}
+          • Netto resultaat (winst of verlies){'\n'}
+          {'\n'}
+          Alle bedragen zijn exclusief BTW. Voor een complete BTW-berekening, ga naar de BTW-aangifte pagina.
         </Text>
       </View>
     </ScrollView>
@@ -208,7 +200,7 @@ const styles = StyleSheet.create({
     color: Colors.text,
     marginBottom: 16,
   },
-  summaryContainer: {
+  profitLossContainer: {
     backgroundColor: Colors.card,
     borderRadius: 12,
     padding: 20,
@@ -216,51 +208,68 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
-  summaryTitle: {
+  profitLossTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: Colors.text,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  incomeSection: {
+    marginBottom: 20,
+  },
+  expenseSection: {
+    marginBottom: 20,
+  },
+  netProfitSection: {
+    marginTop: 10,
+  },
+  sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: Colors.text,
-    marginBottom: 16,
+    marginBottom: 12,
   },
-  summaryRow: {
+  amountRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 8,
+    paddingVertical: 4,
   },
-  summaryLabel: {
+  amountLabel: {
     fontSize: 16,
     color: Colors.lightText,
   },
-  summaryValue: {
+  amountValue: {
     fontSize: 16,
     fontWeight: '500',
     color: Colors.text,
   },
-  generateButton: {
-    backgroundColor: Colors.primaryDark,
-    borderRadius: 12,
-    padding: 18,
-    margin: 16,
-    alignItems: 'center',
-    shadowColor: Colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+  totalLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: Colors.text,
   },
-  generateButtonDisabled: {
-    opacity: 0.7,
+  totalValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: Colors.text,
   },
-  generatingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  generateButtonText: {
-    color: Colors.secondary,
+  netProfitLabel: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginLeft: 8,
+    color: Colors.text,
   },
+  netProfitValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: Colors.border,
+    marginVertical: 8,
+  },
+
   infoContainer: {
     backgroundColor: Colors.card,
     borderRadius: 12,

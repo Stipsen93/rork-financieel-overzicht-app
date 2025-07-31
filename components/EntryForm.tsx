@@ -600,7 +600,7 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
                   style={styles.imageButton}
                   onPress={pickImages}
                 >
-                  <Text style={styles.imageButtonText}>Bonnetje</Text>
+                  <Text style={styles.imageButtonText}>Bon/Factuur</Text>
                 </TouchableOpacity>
               </View>
               

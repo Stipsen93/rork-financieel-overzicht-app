@@ -13,16 +13,15 @@ import {
   Alert,
   FlatList,
 } from 'react-native';
-import { Calendar, Camera, X, Send, FileText, Zap } from 'lucide-react-native';
+import { Calendar, Camera, X, Send } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
-import * as DocumentPicker from 'expo-document-picker';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { Image } from 'expo-image';
 import Colors from '@/constants/colors';
 import { FinanceEntry } from '@/types/finance';
 import { useFinanceStore } from '@/store/financeStore';
-import { processReceiptImages, processPDF } from '@/utils/ocrService';
+import { processReceiptImages } from '@/utils/ocrService';
 
 interface EntryFormProps {
   type: 'income' | 'expense';
@@ -42,7 +41,7 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
   const [permission, requestPermission] = useCameraPermissions();
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const [apiChoice, setApiChoice] = useState<'local' | 'openai' | 'github'>('local');
+
   const [facing, setFacing] = useState<CameraType>('back');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
@@ -87,7 +86,7 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
     setEntryType(type);
     setCategory('overige-kosten');
 
-    setApiChoice('local');
+
   };
   
   const getUniqueSuggestions = () => {
@@ -264,19 +263,21 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
     setIsProcessing(true);
     
     try {
-      // Determine which API to use based on settings and user choice
-      let shouldUseLocalAI = true;
-      let shouldUseGithubAPI = false;
-      let currentApiKey = undefined;
-      
-      if (apiChoice === 'openai' && useApi && apiKey) {
-        shouldUseLocalAI = false;
-        shouldUseGithubAPI = false;
-        currentApiKey = apiKey;
+      // Check if API is configured
+      if (!useApi || !apiKey) {
+        Alert.alert(
+          'API Niet Geconfigureerd',
+          'Configureer eerst je OpenAI API sleutel in de instellingen om bonnen te kunnen verwerken.',
+          [{ text: 'OK' }]
+        );
+        return;
       }
       
-      console.log(`Processing with ${shouldUseLocalAI ? 'Local AI' : 'OpenAI API'}...`);
-      const result = await processReceiptImages(imageUris, currentApiKey, shouldUseLocalAI, shouldUseGithubAPI);
+      let shouldUseGithubAPI = false;
+      let currentApiKey = apiKey;
+      
+      console.log('Processing with OpenAI API...');
+      const result = await processReceiptImages(imageUris, currentApiKey, shouldUseGithubAPI);
       
       if (result) {
         setName(result.name || '');
@@ -286,7 +287,7 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
           setDate(new Date(result.date));
         }
         
-        const processingMethod = shouldUseLocalAI ? 'Lokale AI' : 'OpenAI API';
+        const processingMethod = 'OpenAI API';
         Alert.alert(
           'Succes', 
           `${imageUris.length} foto${imageUris.length > 1 ? "'s" : ''} succesvol verwerkt met ${processingMethod}!`
@@ -319,48 +320,7 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
     }
   };
   
-  const pickPDF = async () => {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: 'application/pdf',
-        copyToCacheDirectory: true,
-      });
-      
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const asset = result.assets[0];
-        setIsProcessing(true);
-        
-        try {
-          const pdfResult = await processPDF(asset.uri, apiKey || undefined, true);
-          
-          if (pdfResult) {
-            setName(pdfResult.name || '');
-            setAmount(pdfResult.amount ? pdfResult.amount.toString().replace('.', ',') : '');
-            if (pdfResult.vatRate) setVatRate(pdfResult.vatRate.toString());
-            if (pdfResult.date) {
-              setDate(new Date(pdfResult.date));
-            }
-            
-            Alert.alert('Succes', 'PDF succesvol verwerkt met Lokale AI!');
-          } else {
-            Alert.alert(
-              'Verwerking Mislukt',
-              'De PDF kon niet automatisch verwerkt worden. Vul de gegevens handmatig in.'
-            );
-          }
-        } catch (error) {
-          console.error('Error processing PDF:', error);
-          const errorMessage = error instanceof Error ? error.message : 'Onbekende fout';
-          Alert.alert('PDF Verwerking Mislukt', `Fout: ${errorMessage}`);
-        } finally {
-          setIsProcessing(false);
-        }
-      }
-    } catch (error) {
-      console.error('Error picking PDF:', error);
-      Alert.alert('Fout', 'Kon PDF niet selecteren');
-    }
-  };
+
   
   const renderImageItem = ({ item, index }: { item: string; index: number }) => (
     <View style={styles.imageItem}>
@@ -604,52 +564,7 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
                 </TouchableOpacity>
               </View>
               
-              {/* AI Processing Toggle - Show available options based on settings */}
-              {useApi && (
-                <View style={styles.aiToggleContainer}>
-                  <Text style={styles.aiToggleLabel}>Verwerking:</Text>
-                  <View style={styles.apiChoiceContainer}>
-                    <TouchableOpacity
-                      style={[
-                        styles.apiChoiceButton,
-                        apiChoice === 'local' && styles.apiChoiceButtonActive,
-                      ]}
-                      onPress={() => setApiChoice('local')}
-                    >
-                      <Zap size={14} color={apiChoice === 'local' ? Colors.secondary : Colors.text} />
-                      <Text
-                        style={[
-                          styles.apiChoiceText,
-                          apiChoice === 'local' && styles.apiChoiceTextActive,
-                        ]}
-                      >
-                        Lokale AI
-                      </Text>
-                    </TouchableOpacity>
-                    
-                    {useApi && apiKey && (
-                      <TouchableOpacity
-                        style={[
-                          styles.apiChoiceButton,
-                          apiChoice === 'openai' && styles.apiChoiceButtonActive,
-                        ]}
-                        onPress={() => setApiChoice('openai')}
-                      >
-                        <Text
-                          style={[
-                            styles.apiChoiceText,
-                            apiChoice === 'openai' && styles.apiChoiceTextActive,
-                          ]}
-                        >
-                          OpenAI
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                    
 
-                  </View>
-                </View>
-              )}
               
               {imageUris.length > 0 && (
                 <View style={styles.imagesContainer}>
@@ -1034,45 +949,7 @@ const styles = StyleSheet.create({
     color: Colors.secondary,
     fontWeight: 'bold',
   },
-  aiToggleContainer: {
-    marginBottom: 16,
-  },
-  aiToggleLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: Colors.text,
-    marginBottom: 8,
-  },
-  apiChoiceContainer: {
-    flexDirection: 'row',
-    backgroundColor: Colors.card,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    overflow: 'hidden',
-  },
-  apiChoiceButton: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    alignItems: 'center',
-    backgroundColor: Colors.card,
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  apiChoiceButtonActive: {
-    backgroundColor: Colors.primary,
-  },
-  apiChoiceText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: Colors.text,
-    marginLeft: 4,
-  },
-  apiChoiceTextActive: {
-    color: Colors.secondary,
-    fontWeight: 'bold',
-  },
+
   categoryScrollContainer: {
     marginBottom: 16,
   },

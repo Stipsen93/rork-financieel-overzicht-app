@@ -1,7 +1,6 @@
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import { callChatGPTAPI, callGitHubChatGPTAPI } from './apiService';
-import { localAI } from './localAIService';
 
 interface ReceiptData {
   name?: string;
@@ -19,39 +18,11 @@ type CoreMessage =
   | { role: 'user'; content: string | Array<ContentPart>; }
   | { role: 'assistant'; content: string | Array<ContentPart>; };
 
-// Lokale AI functie - gebruikt ingebouwde patroonherkenning
-export const processReceiptImagesLocal = async (
-  imageUris: string[]
-): Promise<ReceiptData | null> => {
-  try {
-    if (imageUris.length === 0) {
-      throw new Error('Geen afbeeldingen om te verwerken');
-    }
-
-    console.log(`Processing ${imageUris.length} images with local AI...`);
-    
-    const result = await localAI.processReceiptImages(imageUris);
-    
-    if (result.success && result.data) {
-      console.log('Local AI processing successful:', result.data);
-      return result.data;
-    } else {
-      console.log('Local AI processing failed:', result.error);
-      return null;
-    }
-    
-  } catch (error) {
-    console.error('Error in local AI processing:', error);
-    return null;
-  }
-};
-
 
 
 export const processReceiptImages = async (
   imageUris: string[],
   apiKey?: string,
-  useLocalAI: boolean = false,
   useGithubAPI: boolean = false
 ): Promise<ReceiptData | null> => {
   try {
@@ -59,19 +30,9 @@ export const processReceiptImages = async (
       throw new Error('Geen afbeeldingen om te verwerken');
     }
 
-    // Try local AI first if requested or if no API key
-    if (useLocalAI || !apiKey) {
-      console.log('Trying local AI processing first...');
-      const localResult = await processReceiptImagesLocal(imageUris);
-      if (localResult) {
-        return localResult;
-      }
-      console.log('Local AI failed, falling back to ChatGPT API...');
-    }
-
-    // Fallback to API if available
+    // API key is required
     if (!apiKey) {
-      throw new Error('Geen API sleutel beschikbaar en lokale AI kon de afbeeldingen niet verwerken');
+      throw new Error('Geen API sleutel beschikbaar');
     }
 
     const apiType = useGithubAPI ? 'GitHub API' : 'OpenAI API';
@@ -205,33 +166,21 @@ Retourneer alleen het JSON object, geen andere tekst.`,
 // Keep the original function for backward compatibility
 export const processReceiptImage = async (
   imageUri: string,
-  apiKey?: string,
-  useLocalAI: boolean = false
+  apiKey?: string
 ): Promise<ReceiptData | null> => {
-  return processReceiptImages([imageUri], apiKey, useLocalAI);
+  return processReceiptImages([imageUri], apiKey);
 };
 
 // New function to process PDFs
 export const processPDF = async (
   pdfUri: string,
-  apiKey?: string,
-  useLocalAI: boolean = true
+  apiKey?: string
 ): Promise<ReceiptData | null> => {
   try {
     console.log('Processing PDF...');
     
-    // Try local AI first for PDFs
-    if (useLocalAI) {
-      const result = await localAI.processPDF(pdfUri);
-      if (result.success && result.data) {
-        return result.data;
-      }
-      console.log('Local PDF processing failed:', result.error);
-    }
-    
-    // For now, PDFs are only supported locally
-    // In the future, you could add ChatGPT API support for PDFs
-    throw new Error('PDF verwerking is momenteel alleen lokaal beschikbaar');
+    // PDFs are not supported without local AI
+    throw new Error('PDF verwerking is niet beschikbaar');
     
   } catch (error) {
     console.error('Error processing PDF:', error);

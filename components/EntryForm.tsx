@@ -575,7 +575,7 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
                 </View>
               )}
               
-              {imageUris.length > 0 && (
+              {imageUris.length > 0 && useApi && apiKey && (
                 <TouchableOpacity
                   style={[
                     styles.processButton,
@@ -592,7 +592,7 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
                   ) : (
                     <View style={styles.processingContainer}>
                       <Send size={16} color={Colors.secondary} />
-                      <Text style={styles.processButtonText}>Verwerk Bonnen ({imageUris.length})</Text>
+                      <Text style={styles.processButtonText}>Verwerken</Text>
                     </View>
                   )}
                 </TouchableOpacity>

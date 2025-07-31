@@ -132,6 +132,7 @@ export default function BackupScreen() {
           const success = await importBackup(asset.uri);
           
           if (success) {
+            await loadLastBackupDate(); // Refresh the backup date
             Alert.alert(
               'Back-up Geïmporteerd',
               'Je back-up bestand is succesvol geïmporteerd. Je gegevens zijn hersteld.',
@@ -150,7 +151,21 @@ export default function BackupScreen() {
           }
         } catch (error) {
           console.error('Error importing backup:', error);
-          Alert.alert('Fout', 'Kon back-up bestand niet importeren. Controleer of het bestand geldig is.');
+          let errorMessage = 'Kon back-up bestand niet importeren.';
+          
+          if (error instanceof Error) {
+            if (error.message.includes('JSON')) {
+              errorMessage = 'Het bestand is geen geldig JSON formaat. Controleer of je het juiste back-up bestand hebt geselecteerd.';
+            } else if (error.message.includes('ontbrekende')) {
+              errorMessage = 'Het back-up bestand mist belangrijke gegevens. Het bestand is mogelijk beschadigd.';
+            } else if (error.message.includes('Ongeldig')) {
+              errorMessage = error.message;
+            } else {
+              errorMessage = `Fout bij importeren: ${error.message}`;
+            }
+          }
+          
+          Alert.alert('Import Fout', errorMessage);
         }
       }
     } catch (error) {

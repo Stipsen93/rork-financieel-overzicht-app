@@ -173,13 +173,51 @@ export const shareBackup = async (): Promise<boolean> => {
   }
 };
 
-export const importBackup = async (backupString: string): Promise<boolean> => {
+export const importBackup = async (fileUriOrString: string): Promise<boolean> => {
   try {
+    let backupString: string;
+    
+    // Check if it's a file URI or already a JSON string
+    if (fileUriOrString.startsWith('file://') || fileUriOrString.startsWith('content://') || fileUriOrString.includes('/')) {
+      // It's a file URI, read the file content
+      if (Platform.OS === 'web') {
+        // For web, handle file reading differently
+        const response = await fetch(fileUriOrString);
+        backupString = await response.text();
+      } else {
+        // For mobile, use FileSystem
+        backupString = await FileSystem.readAsStringAsync(fileUriOrString);
+      }
+    } else {
+      // It's already a JSON string
+      backupString = fileUriOrString;
+    }
+    
     const backupData: BackupData = JSON.parse(backupString);
     
-    // Validate backup data
-    if (!backupData.incomes || !backupData.expenses) {
-      throw new Error('Ongeldig backup bestand');
+    // Validate backup data structure
+    if (!backupData || typeof backupData !== 'object') {
+      throw new Error('Ongeldig backup bestand: geen geldig JSON object');
+    }
+    
+    if (!Array.isArray(backupData.incomes) || !Array.isArray(backupData.expenses)) {
+      throw new Error('Ongeldig backup bestand: ontbrekende of ongeldige gegevens');
+    }
+    
+    // Additional validation for data integrity
+    const isValidEntry = (entry: any) => {
+      return entry && 
+             typeof entry.id === 'string' && 
+             typeof entry.amount === 'number' && 
+             typeof entry.description === 'string' && 
+             typeof entry.date === 'string';
+    };
+    
+    const invalidIncomes = backupData.incomes.filter(entry => !isValidEntry(entry));
+    const invalidExpenses = backupData.expenses.filter(entry => !isValidEntry(entry));
+    
+    if (invalidIncomes.length > 0 || invalidExpenses.length > 0) {
+      console.warn('Some entries have invalid format, but continuing with import');
     }
     
     // Store the imported backup
@@ -189,15 +227,19 @@ export const importBackup = async (backupString: string): Promise<boolean> => {
     // Restore data to the store
     const state = useFinanceStore.getState();
     state.restoreFromBackup({
-      incomes: backupData.incomes,
-      expenses: backupData.expenses,
+      incomes: backupData.incomes.filter(isValidEntry),
+      expenses: backupData.expenses.filter(isValidEntry),
       startingCapital: backupData.startingCapital || 0,
     });
     
     console.log('Backup imported and restored successfully');
+    console.log(`Imported ${backupData.incomes.length} income entries and ${backupData.expenses.length} expense entries`);
     return true;
   } catch (error) {
     console.error('Error importing backup:', error);
+    if (error instanceof SyntaxError) {
+      throw new Error('Ongeldig backup bestand: bestand is geen geldig JSON formaat');
+    }
     throw error;
   }
 };

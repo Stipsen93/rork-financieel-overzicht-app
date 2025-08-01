@@ -193,6 +193,8 @@ export const importBackup = async (fileUriOrString: string): Promise<boolean> =>
       backupString = fileUriOrString;
     }
     
+    console.log('Reading backup file content:', backupString.substring(0, 200) + '...');
+    
     const backupData: BackupData = JSON.parse(backupString);
     
     // Validate backup data structure
@@ -204,6 +206,8 @@ export const importBackup = async (fileUriOrString: string): Promise<boolean> =>
       throw new Error('Ongeldig backup bestand: ontbrekende of ongeldige gegevens');
     }
     
+    console.log(`Backup data contains ${backupData.incomes.length} incomes and ${backupData.expenses.length} expenses`);
+    
     // Additional validation for data integrity
     const isValidEntry = (entry: any) => {
       return entry && 
@@ -213,27 +217,68 @@ export const importBackup = async (fileUriOrString: string): Promise<boolean> =>
              typeof entry.date === 'string';
     };
     
+    const validIncomes = backupData.incomes.filter(isValidEntry);
+    const validExpenses = backupData.expenses.filter(isValidEntry);
+    
     const invalidIncomes = backupData.incomes.filter(entry => !isValidEntry(entry));
     const invalidExpenses = backupData.expenses.filter(entry => !isValidEntry(entry));
     
     if (invalidIncomes.length > 0 || invalidExpenses.length > 0) {
-      console.warn('Some entries have invalid format, but continuing with import');
+      console.warn(`Found ${invalidIncomes.length} invalid income entries and ${invalidExpenses.length} invalid expense entries`);
     }
     
-    // Store the imported backup
+    console.log(`Valid entries: ${validIncomes.length} incomes, ${validExpenses.length} expenses`);
+    
+    // Store the imported backup in AsyncStorage
     await AsyncStorage.setItem(BACKUP_KEY, backupString);
     await AsyncStorage.setItem(BACKUP_DATE_KEY, new Date().toISOString());
     
-    // Restore data to the store
+    // Force clear the current Zustand persist storage and reload
+    await AsyncStorage.removeItem('finance-storage');
+    
+    // Create new backup data with proper structure for Zustand
+    const zustandData = {
+      state: {
+        incomes: validIncomes,
+        expenses: validExpenses,
+        startingCapital: backupData.startingCapital || 0,
+        dateSelection: {
+          year: new Date().getFullYear(),
+          month: new Date().getMonth() + 1,
+        },
+        yearSelection: {
+          year: new Date().getFullYear(),
+        },
+        quarterSelection: {
+          year: new Date().getFullYear(),
+          quarter: 5,
+        },
+        apiKey: null,
+        useApi: false,
+        language: 'nl',
+        backupFrequency: 1,
+        lastAutoBackup: null,
+        showStartingCapital: false,
+        incomeDisplayMode: 'both',
+        customCategories: [],
+      },
+      version: 0,
+    };
+    
+    // Store the data in the Zustand persist format
+    await AsyncStorage.setItem('finance-storage', JSON.stringify(zustandData));
+    
+    console.log('Backup imported and stored in Zustand format successfully');
+    console.log(`Final result: ${validIncomes.length} income entries and ${validExpenses.length} expense entries`);
+    
+    // Force reload the store from AsyncStorage
     const state = useFinanceStore.getState();
     state.restoreFromBackup({
-      incomes: backupData.incomes.filter(isValidEntry),
-      expenses: backupData.expenses.filter(isValidEntry),
+      incomes: validIncomes,
+      expenses: validExpenses,
       startingCapital: backupData.startingCapital || 0,
     });
     
-    console.log('Backup imported and restored successfully');
-    console.log(`Imported ${backupData.incomes.length} income entries and ${backupData.expenses.length} expense entries`);
     return true;
   } catch (error) {
     console.error('Error importing backup:', error);

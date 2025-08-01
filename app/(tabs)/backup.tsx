@@ -8,7 +8,7 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { Save, Download, Clock, CheckCircle, Share, FolderOpen } from 'lucide-react-native';
 import { useFinanceStore } from '@/store/financeStore';
 import Colors from '@/constants/colors';
@@ -21,6 +21,7 @@ export default function BackupScreen() {
   const [isSharingBackup, setIsSharingBackup] = useState(false);
   const [isImportingBackup, setIsImportingBackup] = useState(false);
   const [lastBackupDate, setLastBackupDate] = useState<Date | null>(null);
+  const router = useRouter();
   const { 
     incomes, 
     expenses, 
@@ -135,13 +136,15 @@ export default function BackupScreen() {
             await loadLastBackupDate(); // Refresh the backup date
             Alert.alert(
               'Back-up Geïmporteerd',
-              'Je back-up bestand is succesvol geïmporteerd. Je gegevens zijn hersteld.',
+              'Je back-up bestand is succesvol geïmporteerd. De app wordt nu herstart om de nieuwe gegevens te laden.',
               [
                 {
                   text: 'OK',
                   onPress: () => {
-                    // Force a re-render by reloading the page/component
-                    // The restored data will be automatically loaded from AsyncStorage
+                    // Force app restart by navigating to home and back
+                    setTimeout(() => {
+                      router.replace('/(tabs)');
+                    }, 100);
                   }
                 }
               ]

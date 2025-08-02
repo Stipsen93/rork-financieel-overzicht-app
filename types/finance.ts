@@ -11,7 +11,7 @@ export interface FinanceEntry {
   category?: 'zakelijke-uitgaven' | 'kantoorkosten' | 'reiskosten' | 'apparatuur-computers' | 'bedrijfsuitje' | 'autokosten' | 'overige-kosten';
   isRecurring?: boolean;
   recurringFrequency?: 'daily' | 'weekly' | 'monthly' | 'yearly';
-  recurringEndDate?: string;
+  recurringCount?: number;
   recurringParentId?: string;
 }
 

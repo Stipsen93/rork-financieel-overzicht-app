@@ -50,9 +50,9 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
   const [entryType, setEntryType] = useState<'income' | 'expense'>(type);
   const [category, setCategory] = useState<'zakelijke-uitgaven' | 'kantoorkosten' | 'reiskosten' | 'apparatuur-computers' | 'bedrijfsuitje' | 'autokosten' | 'overige-kosten'>('overige-kosten');
   const [isRecurring, setIsRecurring] = useState(false);
-  const [recurringFrequency, setRecurringFrequency] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('monthly');
-  const [recurringEndDate, setRecurringEndDate] = useState(new Date(new Date().setFullYear(new Date().getFullYear() + 1)));
-  const [showRecurringEndDatePicker, setShowRecurringEndDatePicker] = useState(false);
+
+  const [recurringType, setRecurringType] = useState<'daily' | 'weekly' | 'monthly' | 'custom'>('monthly');
+  const [customRepeatCount, setCustomRepeatCount] = useState('12');
   
   const cameraRef = useRef<CameraView>(null);
   const { addIncome, addExpense, addMultipleIncomes, addMultipleExpenses, updateIncome, updateExpense, removeIncome, removeExpense, apiKey, useApi, dateSelection, incomes, expenses, customCategories } = useFinanceStore();
@@ -69,9 +69,9 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
         setEntryType(incomes.find(inc => inc.id === editEntry.id) ? 'income' : 'expense');
         setCategory(editEntry.category || 'overige-kosten');
         setIsRecurring(editEntry.isRecurring || false);
-        setRecurringFrequency(editEntry.recurringFrequency || 'monthly');
-        if (editEntry.recurringEndDate) {
-          setRecurringEndDate(new Date(editEntry.recurringEndDate));
+        setRecurringType(editEntry.recurringFrequency === 'yearly' ? 'monthly' : (editEntry.recurringFrequency || 'monthly') as 'daily' | 'weekly' | 'monthly');
+        if (editEntry.recurringCount) {
+          setCustomRepeatCount(editEntry.recurringCount.toString());
         }
       } else {
         // Initialize with selected month/year from store, but current day
@@ -97,8 +97,9 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
     setEntryType(type);
     setCategory('overige-kosten');
     setIsRecurring(false);
-    setRecurringFrequency('monthly');
-    setRecurringEndDate(new Date(new Date().setFullYear(new Date().getFullYear() + 1)));
+
+    setRecurringType('monthly');
+    setCustomRepeatCount('12');
 
 
   };
@@ -159,8 +160,8 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
       return;
     }
     
-    if (isRecurring && recurringEndDate <= date) {
-      Alert.alert('Fout', 'Einddatum moet na de startdatum liggen');
+    if (isRecurring && parseInt(customRepeatCount) <= 0) {
+      Alert.alert('Fout', 'Aantal herhalingen moet groter zijn dan 0');
       return;
     }
     
@@ -173,8 +174,8 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
       imageUris: imageUris.length > 0 ? imageUris : undefined,
       category: entryType === 'expense' ? category : undefined,
       isRecurring,
-      recurringFrequency: isRecurring ? recurringFrequency : undefined,
-      recurringEndDate: isRecurring ? recurringEndDate.toISOString() : undefined,
+      recurringFrequency: isRecurring ? (recurringType === 'custom' ? 'monthly' : recurringType) : undefined,
+      recurringCount: isRecurring ? parseInt(customRepeatCount) : undefined,
     };
     
     if (editEntry) {
@@ -201,7 +202,8 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
     } else {
       // Add new entry or recurring entries
       if (isRecurring) {
-        const recurringEntries = generateRecurringEntries(entryData, recurringFrequency, recurringEndDate.toISOString());
+        const frequency = recurringType === 'custom' ? 'monthly' : recurringType;
+        const recurringEntries = generateRecurringEntries(entryData, frequency, parseInt(customRepeatCount));
         
         if (entryType === 'income') {
           addMultipleIncomes(recurringEntries);
@@ -211,7 +213,7 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
         
         Alert.alert(
           'Succes',
-          `${recurringEntries.length} ${getFrequencyLabel(recurringFrequency).toLowerCase()} ${entryType === 'income' ? 'inkomsten' : 'uitgaven'} toegevoegd!`
+          `${recurringEntries.length} ${recurringType === 'custom' ? 'herhalende' : getFrequencyLabel(recurringType).toLowerCase()} ${entryType === 'income' ? 'inkomsten' : 'uitgaven'} toegevoegd!`
         );
       } else {
         if (entryType === 'income') {
@@ -355,15 +357,25 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
   
 
   
-  const handleRecurringEndDateChange = (event: any, selectedDate?: Date) => {
-    if (Platform.OS === 'android') {
-      setShowRecurringEndDatePicker(false);
+  const getRepeatCountForType = (type: 'daily' | 'weekly' | 'monthly' | 'custom') => {
+    switch (type) {
+      case 'daily':
+        return '30';
+      case 'weekly':
+        return '12';
+      case 'monthly':
+        return '12';
+      case 'custom':
+        return customRepeatCount;
+      default:
+        return '12';
     }
-    if (selectedDate) {
-      setRecurringEndDate(selectedDate);
-      if (Platform.OS === 'ios') {
-        setShowRecurringEndDatePicker(false);
-      }
+  };
+
+  const handleRecurringTypeChange = (type: 'daily' | 'weekly' | 'monthly' | 'custom') => {
+    setRecurringType(type);
+    if (type !== 'custom') {
+      setCustomRepeatCount(getRepeatCountForType(type));
     }
   };
   
@@ -608,7 +620,7 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
                     
                     {isRecurring && (
                       <View style={styles.recurringOptions}>
-                        <Text style={styles.subLabel}>Frequentie</Text>
+                        <Text style={styles.subLabel}>Herhaling</Text>
                         <ScrollView 
                           horizontal 
                           showsHorizontalScrollIndicator={false}
@@ -619,20 +631,20 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
                             { key: 'daily', label: 'Dagelijks' },
                             { key: 'weekly', label: 'Wekelijks' },
                             { key: 'monthly', label: 'Maandelijks' },
-                            { key: 'yearly', label: 'Jaarlijks' },
+                            { key: 'custom', label: 'Aangepast' },
                           ].map((freq) => (
                             <TouchableOpacity
                               key={freq.key}
                               style={[
                                 styles.frequencyButton,
-                                recurringFrequency === freq.key && styles.frequencyButtonActive,
+                                recurringType === freq.key && styles.frequencyButtonActive,
                               ]}
-                              onPress={() => setRecurringFrequency(freq.key as typeof recurringFrequency)}
+                              onPress={() => handleRecurringTypeChange(freq.key as typeof recurringType)}
                             >
                               <Text
                                 style={[
                                   styles.frequencyText,
-                                  recurringFrequency === freq.key && styles.frequencyTextActive,
+                                  recurringType === freq.key && styles.frequencyTextActive,
                                 ]}
                               >
                                 {freq.label}
@@ -641,26 +653,17 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
                           ))}
                         </ScrollView>
                         
-                        <Text style={styles.subLabel}>Einddatum</Text>
-                        <TouchableOpacity
-                          style={styles.datePickerButton}
-                          onPress={() => setShowRecurringEndDatePicker(true)}
-                        >
-                          <Text style={styles.dateText}>
-                            {recurringEndDate.toLocaleDateString('nl-NL')}
-                          </Text>
-                          <Calendar size={20} color={Colors.text} />
-                        </TouchableOpacity>
-                        
-                        {showRecurringEndDatePicker && (
-                          <DateTimePicker
-                            value={recurringEndDate}
-                            mode="date"
-                            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                            onChange={handleRecurringEndDateChange}
-                            minimumDate={new Date(date.getTime() + 24 * 60 * 60 * 1000)} // Next day
-                          />
-                        )}
+                        <Text style={styles.subLabel}>
+                          {recurringType === 'custom' ? 'Aantal keren herhalen' : `Aantal ${recurringType === 'daily' ? 'dagen' : recurringType === 'weekly' ? 'weken' : 'maanden'}`}
+                        </Text>
+                        <TextInput
+                          style={styles.input}
+                          value={customRepeatCount}
+                          onChangeText={setCustomRepeatCount}
+                          placeholder="Aantal"
+                          placeholderTextColor={Colors.lightText}
+                          keyboardType="numeric"
+                        />
                       </View>
                     )}
                   </View>

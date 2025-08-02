@@ -603,6 +603,64 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
                 />
               )}
               
+
+              
+              <Text style={styles.label}>Documenten ({imageUris.length} foto&apos;s)</Text>
+              <View style={styles.imageActions}>
+                <TouchableOpacity
+                  style={styles.imageButton}
+                  onPress={openCamera}
+                >
+                  <Camera size={16} color={Colors.text} />
+                  <Text style={styles.imageButtonText}>Foto maken</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={styles.imageButton}
+                  onPress={pickImages}
+                >
+                  <Text style={styles.imageButtonText}>Bon/Factuur</Text>
+                </TouchableOpacity>
+              </View>
+              
+
+              
+              {imageUris.length > 0 && (
+                <View style={styles.imagesContainer}>
+                  <FlatList
+                    data={imageUris}
+                    renderItem={renderImageItem}
+                    keyExtractor={(item, index) => `${item}-${index}`}
+                    numColumns={2}
+                    scrollEnabled={false}
+                    columnWrapperStyle={styles.imageRow}
+                  />
+                </View>
+              )}
+              
+              {imageUris.length > 0 && useApi && apiKey && (
+                <TouchableOpacity
+                  style={[
+                    styles.processButton,
+                    isProcessing && styles.processButtonDisabled
+                  ]}
+                  onPress={processReceipts}
+                  disabled={isProcessing}
+                >
+                  {isProcessing ? (
+                    <View style={styles.processingContainer}>
+                      <ActivityIndicator size="small" color={Colors.secondary} />
+                      <Text style={styles.processButtonText}>Verwerken...</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.processingContainer}>
+                      <Send size={16} color={Colors.secondary} />
+                      <Text style={styles.processButtonText}>Verwerken</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              )}
+              
               {/* Recurring Entry Section - Only for new entries */}
               {!editEntry && (
                 <>
@@ -668,62 +726,6 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
                     )}
                   </View>
                 </>
-              )}
-              
-              <Text style={styles.label}>Documenten ({imageUris.length} foto&apos;s)</Text>
-              <View style={styles.imageActions}>
-                <TouchableOpacity
-                  style={styles.imageButton}
-                  onPress={openCamera}
-                >
-                  <Camera size={16} color={Colors.text} />
-                  <Text style={styles.imageButtonText}>Foto maken</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={styles.imageButton}
-                  onPress={pickImages}
-                >
-                  <Text style={styles.imageButtonText}>Bon/Factuur</Text>
-                </TouchableOpacity>
-              </View>
-              
-
-              
-              {imageUris.length > 0 && (
-                <View style={styles.imagesContainer}>
-                  <FlatList
-                    data={imageUris}
-                    renderItem={renderImageItem}
-                    keyExtractor={(item, index) => `${item}-${index}`}
-                    numColumns={2}
-                    scrollEnabled={false}
-                    columnWrapperStyle={styles.imageRow}
-                  />
-                </View>
-              )}
-              
-              {imageUris.length > 0 && useApi && apiKey && (
-                <TouchableOpacity
-                  style={[
-                    styles.processButton,
-                    isProcessing && styles.processButtonDisabled
-                  ]}
-                  onPress={processReceipts}
-                  disabled={isProcessing}
-                >
-                  {isProcessing ? (
-                    <View style={styles.processingContainer}>
-                      <ActivityIndicator size="small" color={Colors.secondary} />
-                      <Text style={styles.processButtonText}>Verwerken...</Text>
-                    </View>
-                  ) : (
-                    <View style={styles.processingContainer}>
-                      <Send size={16} color={Colors.secondary} />
-                      <Text style={styles.processButtonText}>Verwerken</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
               )}
               
               <TouchableOpacity

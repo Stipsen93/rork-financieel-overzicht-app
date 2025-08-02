@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,6 @@ import {
   Alert,
   FlatList,
   Switch,
-  Animated,
 } from 'react-native';
 import { Calendar, Camera, X, Send, Repeat } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -52,9 +51,7 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
   const [category, setCategory] = useState<'zakelijke-uitgaven' | 'kantoorkosten' | 'reiskosten' | 'apparatuur-computers' | 'bedrijfsuitje' | 'autokosten' | 'overige-kosten'>('overige-kosten');
   const [isRecurring, setIsRecurring] = useState(false);
 
-  const [recurringType, setRecurringType] = useState<'daily' | 'weekly' | 'monthly' | 'custom'>('monthly');
-  const [customRepeatCount, setCustomRepeatCount] = useState('12');
-  const customInputHeight = useRef(new Animated.Value(0)).current;
+  const [recurringType, setRecurringType] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
   
   const cameraRef = useRef<CameraView>(null);
   const { addIncome, addExpense, addMultipleIncomes, addMultipleExpenses, updateIncome, updateExpense, removeIncome, removeExpense, apiKey, useApi, dateSelection, incomes, expenses, customCategories } = useFinanceStore();
@@ -72,9 +69,6 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
         setCategory(editEntry.category || 'overige-kosten');
         setIsRecurring(editEntry.isRecurring || false);
         setRecurringType(editEntry.recurringFrequency === 'yearly' ? 'monthly' : (editEntry.recurringFrequency || 'monthly') as 'daily' | 'weekly' | 'monthly');
-        if (editEntry.recurringCount) {
-          setCustomRepeatCount(editEntry.recurringCount.toString());
-        }
       } else {
         // Initialize with selected month/year from store, but current day
         const selectedDate = new Date(dateSelection.year, dateSelection.month - 1, new Date().getDate());
@@ -84,9 +78,9 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
     } else {
       resetForm();
     }
-  }, [visible, dateSelection, editEntry, type, incomes]);
+  }, [visible, dateSelection, editEntry, type, incomes, resetForm]);
   
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setName('');
     setAmount('');
     setVatRate('21');
@@ -100,10 +94,7 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
     setCategory('overige-kosten');
     setIsRecurring(false);
     setRecurringType('monthly');
-    setCustomRepeatCount('12');
-    // Reset animation
-    customInputHeight.setValue(0);
-  };
+  }, [dateSelection.year, dateSelection.month, type]);
   
   const getUniqueSuggestions = () => {
     const entries = entryType === 'income' ? incomes : expenses;
@@ -161,10 +152,7 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
       return;
     }
     
-    if (isRecurring && parseInt(customRepeatCount) <= 0) {
-      Alert.alert('Fout', 'Aantal herhalingen moet groter zijn dan 0');
-      return;
-    }
+
     
     const entryData = {
       name,
@@ -175,8 +163,8 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
       imageUris: imageUris.length > 0 ? imageUris : undefined,
       category: entryType === 'expense' ? category : undefined,
       isRecurring,
-      recurringFrequency: isRecurring ? (recurringType === 'custom' ? 'monthly' : recurringType) : undefined,
-      recurringCount: isRecurring ? parseInt(customRepeatCount) : undefined,
+      recurringFrequency: isRecurring ? recurringType : undefined,
+      recurringCount: isRecurring ? getRepeatCountForFrequency(recurringType) : undefined,
     };
     
     if (editEntry) {
@@ -203,8 +191,8 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
     } else {
       // Add new entry or recurring entries
       if (isRecurring) {
-        const frequency = recurringType === 'custom' ? 'monthly' : recurringType;
-        const recurringEntries = generateRecurringEntries(entryData, frequency, parseInt(customRepeatCount));
+        const repeatCount = getRepeatCountForFrequency(recurringType);
+        const recurringEntries = generateRecurringEntries(entryData, recurringType, repeatCount);
         
         if (entryType === 'income') {
           addMultipleIncomes(recurringEntries);
@@ -214,7 +202,7 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
         
         Alert.alert(
           'Succes',
-          `${recurringEntries.length} ${recurringType === 'custom' ? 'herhalende' : getFrequencyLabel(recurringType).toLowerCase()} ${entryType === 'income' ? 'inkomsten' : 'uitgaven'} toegevoegd!`
+          `${recurringEntries.length} ${getFrequencyLabel(recurringType).toLowerCase()} ${entryType === 'income' ? 'inkomsten' : 'uitgaven'} toegevoegd!`
         );
       } else {
         if (entryType === 'income') {
@@ -358,38 +346,16 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
   
 
   
-  const getRepeatCountForType = (type: 'daily' | 'weekly' | 'monthly' | 'custom') => {
-    switch (type) {
+  const getRepeatCountForFrequency = (frequency: 'daily' | 'weekly' | 'monthly') => {
+    switch (frequency) {
       case 'daily':
-        return '30';
+        return 365; // Daily for a year
       case 'weekly':
-        return '12';
+        return 52;  // Weekly for a year
       case 'monthly':
-        return '12';
-      case 'custom':
-        return customRepeatCount;
+        return 12;  // Monthly for a year
       default:
-        return '12';
-    }
-  };
-
-  const handleRecurringTypeChange = (type: 'daily' | 'weekly' | 'monthly' | 'custom') => {
-    setRecurringType(type);
-    if (type !== 'custom') {
-      setCustomRepeatCount(getRepeatCountForType(type));
-      // Animate out
-      Animated.timing(customInputHeight, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: false,
-      }).start();
-    } else {
-      // Animate in
-      Animated.timing(customInputHeight, {
-        toValue: 80, // Height for label + input + margin
-        duration: 300,
-        useNativeDriver: false,
-      }).start();
+        return 12;
     }
   };
   
@@ -703,7 +669,6 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
                             { key: 'daily', label: 'Dagelijks' },
                             { key: 'weekly', label: 'Wekelijks' },
                             { key: 'monthly', label: 'Maandelijks' },
-                            { key: 'custom', label: 'Aangepast' },
                           ].map((freq) => (
                             <TouchableOpacity
                               key={freq.key}
@@ -711,7 +676,7 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
                                 styles.frequencyButton,
                                 recurringType === freq.key && styles.frequencyButtonActive,
                               ]}
-                              onPress={() => handleRecurringTypeChange(freq.key as typeof recurringType)}
+                              onPress={() => setRecurringType(freq.key as typeof recurringType)}
                             >
                               <Text
                                 style={[
@@ -724,36 +689,6 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
                             </TouchableOpacity>
                           ))}
                         </ScrollView>
-                        
-                        {recurringType !== 'custom' && (
-                          <>
-                            <Text style={styles.subLabel}>
-                              {`Aantal ${recurringType === 'daily' ? 'dagen' : recurringType === 'weekly' ? 'weken' : 'maanden'}`}
-                            </Text>
-                            <TextInput
-                              style={styles.input}
-                              value={customRepeatCount}
-                              onChangeText={setCustomRepeatCount}
-                              placeholder="Aantal"
-                              placeholderTextColor={Colors.lightText}
-                              keyboardType="numeric"
-                            />
-                          </>
-                        )}
-                        
-                        <Animated.View style={[styles.customInputContainer, { height: customInputHeight, overflow: 'hidden' }]}>
-                          <Text style={styles.subLabel}>
-                            Aantal dagen, weken, maanden
-                          </Text>
-                          <TextInput
-                            style={styles.input}
-                            value={customRepeatCount}
-                            onChangeText={setCustomRepeatCount}
-                            placeholder="Aantal"
-                            placeholderTextColor={Colors.lightText}
-                            keyboardType="numeric"
-                          />
-                        </Animated.View>
                       </View>
                     )}
                   </View>
@@ -1194,7 +1129,5 @@ const styles = StyleSheet.create({
     color: Colors.secondary,
     fontWeight: 'bold',
   },
-  customInputContainer: {
-    overflow: 'hidden',
-  },
+
 });

@@ -39,7 +39,7 @@ export default function TabLayout() {
           },
           headerTitle: ({ children }) => (
             <Text style={{ color: Colors.text, fontWeight: 'bold', fontSize: 17 }}>
-              {children} 4.1
+              {children} 4.2
             </Text>
           ),
           headerRight: () => (

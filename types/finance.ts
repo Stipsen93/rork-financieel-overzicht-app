@@ -9,6 +9,10 @@ export interface FinanceEntry {
   imageUris?: string[];
   notes?: string;
   category?: 'zakelijke-uitgaven' | 'kantoorkosten' | 'reiskosten' | 'apparatuur-computers' | 'bedrijfsuitje' | 'autokosten' | 'overige-kosten';
+  isRecurring?: boolean;
+  recurringFrequency?: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  recurringEndDate?: string;
+  recurringParentId?: string;
 }
 
 export interface MonthSummary {

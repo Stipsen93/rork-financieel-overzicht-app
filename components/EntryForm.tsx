@@ -12,8 +12,9 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Switch,
 } from 'react-native';
-import { Calendar, Camera, X, Send } from 'lucide-react-native';
+import { Calendar, Camera, X, Send, Repeat } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
@@ -22,6 +23,7 @@ import Colors from '@/constants/colors';
 import { FinanceEntry } from '@/types/finance';
 import { useFinanceStore } from '@/store/financeStore';
 import { processReceiptImages } from '@/utils/ocrService';
+import { generateRecurringEntries, getFrequencyLabel } from '@/utils/recurringService';
 
 interface EntryFormProps {
   type: 'income' | 'expense';
@@ -47,9 +49,13 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
   const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
   const [entryType, setEntryType] = useState<'income' | 'expense'>(type);
   const [category, setCategory] = useState<'zakelijke-uitgaven' | 'kantoorkosten' | 'reiskosten' | 'apparatuur-computers' | 'bedrijfsuitje' | 'autokosten' | 'overige-kosten'>('overige-kosten');
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurringFrequency, setRecurringFrequency] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('monthly');
+  const [recurringEndDate, setRecurringEndDate] = useState(new Date(new Date().setFullYear(new Date().getFullYear() + 1)));
+  const [showRecurringEndDatePicker, setShowRecurringEndDatePicker] = useState(false);
   
   const cameraRef = useRef<CameraView>(null);
-  const { addIncome, addExpense, updateIncome, updateExpense, removeIncome, removeExpense, apiKey, useApi, dateSelection, incomes, expenses, customCategories } = useFinanceStore();
+  const { addIncome, addExpense, addMultipleIncomes, addMultipleExpenses, updateIncome, updateExpense, removeIncome, removeExpense, apiKey, useApi, dateSelection, incomes, expenses, customCategories } = useFinanceStore();
   
   useEffect(() => {
     if (visible) {
@@ -62,6 +68,11 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
         setImageUris(editEntry.imageUris || (editEntry.imageUri ? [editEntry.imageUri] : []));
         setEntryType(incomes.find(inc => inc.id === editEntry.id) ? 'income' : 'expense');
         setCategory(editEntry.category || 'overige-kosten');
+        setIsRecurring(editEntry.isRecurring || false);
+        setRecurringFrequency(editEntry.recurringFrequency || 'monthly');
+        if (editEntry.recurringEndDate) {
+          setRecurringEndDate(new Date(editEntry.recurringEndDate));
+        }
       } else {
         // Initialize with selected month/year from store, but current day
         const selectedDate = new Date(dateSelection.year, dateSelection.month - 1, new Date().getDate());
@@ -85,6 +96,9 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
     setFilteredSuggestions([]);
     setEntryType(type);
     setCategory('overige-kosten');
+    setIsRecurring(false);
+    setRecurringFrequency('monthly');
+    setRecurringEndDate(new Date(new Date().setFullYear(new Date().getFullYear() + 1)));
 
 
   };
@@ -145,6 +159,11 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
       return;
     }
     
+    if (isRecurring && recurringEndDate <= date) {
+      Alert.alert('Fout', 'Einddatum moet na de startdatum liggen');
+      return;
+    }
+    
     const entryData = {
       name,
       amount: parseFloat(amount.replace(',', '.')),
@@ -153,6 +172,9 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
       imageUri: imageUris.length > 0 ? imageUris[0] : undefined,
       imageUris: imageUris.length > 0 ? imageUris : undefined,
       category: entryType === 'expense' ? category : undefined,
+      isRecurring,
+      recurringFrequency: isRecurring ? recurringFrequency : undefined,
+      recurringEndDate: isRecurring ? recurringEndDate.toISOString() : undefined,
     };
     
     if (editEntry) {
@@ -177,11 +199,26 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
         }
       }
     } else {
-      // Add new entry
-      if (entryType === 'income') {
-        addIncome(entryData);
+      // Add new entry or recurring entries
+      if (isRecurring) {
+        const recurringEntries = generateRecurringEntries(entryData, recurringFrequency, recurringEndDate.toISOString());
+        
+        if (entryType === 'income') {
+          addMultipleIncomes(recurringEntries);
+        } else {
+          addMultipleExpenses(recurringEntries);
+        }
+        
+        Alert.alert(
+          'Succes',
+          `${recurringEntries.length} ${getFrequencyLabel(recurringFrequency).toLowerCase()} ${entryType === 'income' ? 'inkomsten' : 'uitgaven'} toegevoegd!`
+        );
       } else {
-        addExpense(entryData);
+        if (entryType === 'income') {
+          addIncome(entryData);
+        } else {
+          addExpense(entryData);
+        }
       }
     }
     
@@ -317,6 +354,18 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
   };
   
 
+  
+  const handleRecurringEndDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowRecurringEndDatePicker(false);
+    }
+    if (selectedDate) {
+      setRecurringEndDate(selectedDate);
+      if (Platform.OS === 'ios') {
+        setShowRecurringEndDatePicker(false);
+      }
+    }
+  };
   
   const renderImageItem = ({ item, index }: { item: string; index: number }) => (
     <View style={styles.imageItem}>
@@ -540,6 +589,82 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
                   onChange={handleDateChange}
                   maximumDate={new Date()}
                 />
+              )}
+              
+              {/* Recurring Entry Section - Only for new entries */}
+              {!editEntry && (
+                <>
+                  <View style={styles.recurringContainer}>
+                    <View style={styles.recurringHeader}>
+                      <Repeat size={20} color={Colors.text} />
+                      <Text style={styles.label}>Herhalen</Text>
+                      <Switch
+                        value={isRecurring}
+                        onValueChange={setIsRecurring}
+                        trackColor={{ false: Colors.border, true: Colors.primary }}
+                        thumbColor={isRecurring ? Colors.secondary : Colors.lightText}
+                      />
+                    </View>
+                    
+                    {isRecurring && (
+                      <View style={styles.recurringOptions}>
+                        <Text style={styles.subLabel}>Frequentie</Text>
+                        <ScrollView 
+                          horizontal 
+                          showsHorizontalScrollIndicator={false}
+                          style={styles.frequencyScrollContainer}
+                          contentContainerStyle={styles.frequencyContainer}
+                        >
+                          {[
+                            { key: 'daily', label: 'Dagelijks' },
+                            { key: 'weekly', label: 'Wekelijks' },
+                            { key: 'monthly', label: 'Maandelijks' },
+                            { key: 'yearly', label: 'Jaarlijks' },
+                          ].map((freq) => (
+                            <TouchableOpacity
+                              key={freq.key}
+                              style={[
+                                styles.frequencyButton,
+                                recurringFrequency === freq.key && styles.frequencyButtonActive,
+                              ]}
+                              onPress={() => setRecurringFrequency(freq.key as typeof recurringFrequency)}
+                            >
+                              <Text
+                                style={[
+                                  styles.frequencyText,
+                                  recurringFrequency === freq.key && styles.frequencyTextActive,
+                                ]}
+                              >
+                                {freq.label}
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                        
+                        <Text style={styles.subLabel}>Einddatum</Text>
+                        <TouchableOpacity
+                          style={styles.datePickerButton}
+                          onPress={() => setShowRecurringEndDatePicker(true)}
+                        >
+                          <Text style={styles.dateText}>
+                            {recurringEndDate.toLocaleDateString('nl-NL')}
+                          </Text>
+                          <Calendar size={20} color={Colors.text} />
+                        </TouchableOpacity>
+                        
+                        {showRecurringEndDatePicker && (
+                          <DateTimePicker
+                            value={recurringEndDate}
+                            mode="date"
+                            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                            onChange={handleRecurringEndDateChange}
+                            minimumDate={new Date(date.getTime() + 24 * 60 * 60 * 1000)} // Next day
+                          />
+                        )}
+                      </View>
+                    )}
+                  </View>
+                </>
               )}
               
               <Text style={styles.label}>Documenten ({imageUris.length} foto&apos;s)</Text>
@@ -974,6 +1099,61 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   categoryTextActive: {
+    color: Colors.secondary,
+    fontWeight: 'bold',
+  },
+  
+  recurringContainer: {
+    backgroundColor: Colors.card,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: 16,
+    marginBottom: 16,
+  },
+  recurringHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  recurringOptions: {
+    marginTop: 16,
+  },
+  subLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: Colors.text,
+    marginBottom: 8,
+  },
+  frequencyScrollContainer: {
+    marginBottom: 16,
+  },
+  frequencyContainer: {
+    paddingRight: 20,
+  },
+  frequencyButton: {
+    backgroundColor: Colors.background,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+    marginRight: 8,
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  frequencyButtonActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primaryDark,
+  },
+  frequencyText: {
+    fontSize: 12,
+    color: Colors.text,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  frequencyTextActive: {
     color: Colors.secondary,
     fontWeight: 'bold',
   },

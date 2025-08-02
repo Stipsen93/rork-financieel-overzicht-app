@@ -13,6 +13,7 @@ import {
   Alert,
   FlatList,
   Switch,
+  Animated,
 } from 'react-native';
 import { Calendar, Camera, X, Send, Repeat } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -53,6 +54,7 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
 
   const [recurringType, setRecurringType] = useState<'daily' | 'weekly' | 'monthly' | 'custom'>('monthly');
   const [customRepeatCount, setCustomRepeatCount] = useState('12');
+  const customInputHeight = useRef(new Animated.Value(0)).current;
   
   const cameraRef = useRef<CameraView>(null);
   const { addIncome, addExpense, addMultipleIncomes, addMultipleExpenses, updateIncome, updateExpense, removeIncome, removeExpense, apiKey, useApi, dateSelection, incomes, expenses, customCategories } = useFinanceStore();
@@ -97,11 +99,10 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
     setEntryType(type);
     setCategory('overige-kosten');
     setIsRecurring(false);
-
     setRecurringType('monthly');
     setCustomRepeatCount('12');
-
-
+    // Reset animation
+    customInputHeight.setValue(0);
   };
   
   const getUniqueSuggestions = () => {
@@ -376,6 +377,19 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
     setRecurringType(type);
     if (type !== 'custom') {
       setCustomRepeatCount(getRepeatCountForType(type));
+      // Animate out
+      Animated.timing(customInputHeight, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
+    } else {
+      // Animate in
+      Animated.timing(customInputHeight, {
+        toValue: 80, // Height for label + input + margin
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
     }
   };
   
@@ -711,17 +725,35 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
                           ))}
                         </ScrollView>
                         
-                        <Text style={styles.subLabel}>
-                          {recurringType === 'custom' ? 'Aantal keren herhalen' : `Aantal ${recurringType === 'daily' ? 'dagen' : recurringType === 'weekly' ? 'weken' : 'maanden'}`}
-                        </Text>
-                        <TextInput
-                          style={styles.input}
-                          value={customRepeatCount}
-                          onChangeText={setCustomRepeatCount}
-                          placeholder="Aantal"
-                          placeholderTextColor={Colors.lightText}
-                          keyboardType="numeric"
-                        />
+                        {recurringType !== 'custom' && (
+                          <>
+                            <Text style={styles.subLabel}>
+                              {`Aantal ${recurringType === 'daily' ? 'dagen' : recurringType === 'weekly' ? 'weken' : 'maanden'}`}
+                            </Text>
+                            <TextInput
+                              style={styles.input}
+                              value={customRepeatCount}
+                              onChangeText={setCustomRepeatCount}
+                              placeholder="Aantal"
+                              placeholderTextColor={Colors.lightText}
+                              keyboardType="numeric"
+                            />
+                          </>
+                        )}
+                        
+                        <Animated.View style={[styles.customInputContainer, { height: customInputHeight, overflow: 'hidden' }]}>
+                          <Text style={styles.subLabel}>
+                            Aantal dagen, weken, maanden
+                          </Text>
+                          <TextInput
+                            style={styles.input}
+                            value={customRepeatCount}
+                            onChangeText={setCustomRepeatCount}
+                            placeholder="Aantal"
+                            placeholderTextColor={Colors.lightText}
+                            keyboardType="numeric"
+                          />
+                        </Animated.View>
                       </View>
                     )}
                   </View>
@@ -1161,5 +1193,8 @@ const styles = StyleSheet.create({
   frequencyTextActive: {
     color: Colors.secondary,
     fontWeight: 'bold',
+  },
+  customInputContainer: {
+    overflow: 'hidden',
   },
 });

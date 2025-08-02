@@ -56,6 +56,22 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
   const cameraRef = useRef<CameraView>(null);
   const { addIncome, addExpense, addMultipleIncomes, addMultipleExpenses, updateIncome, updateExpense, removeIncome, removeExpense, apiKey, useApi, dateSelection, incomes, expenses, customCategories } = useFinanceStore();
   
+  const resetForm = useCallback(() => {
+    setName('');
+    setAmount('');
+    setVatRate('21');
+    const selectedDate = new Date(dateSelection.year, dateSelection.month - 1, new Date().getDate());
+    setDate(selectedDate);
+    setImageUris([]);
+    setIsProcessing(false);
+    setShowSuggestions(false);
+    setFilteredSuggestions([]);
+    setEntryType(type);
+    setCategory('overige-kosten');
+    setIsRecurring(false);
+    setRecurringType('monthly');
+  }, [dateSelection.year, dateSelection.month, type]);
+  
   useEffect(() => {
     if (visible) {
       if (editEntry) {
@@ -78,23 +94,7 @@ export default function EntryForm({ type, visible, onClose, editEntry }: EntryFo
     } else {
       resetForm();
     }
-  }, [visible, dateSelection, editEntry, type, incomes, resetForm]);
-  
-  const resetForm = useCallback(() => {
-    setName('');
-    setAmount('');
-    setVatRate('21');
-    const selectedDate = new Date(dateSelection.year, dateSelection.month - 1, new Date().getDate());
-    setDate(selectedDate);
-    setImageUris([]);
-    setIsProcessing(false);
-    setShowSuggestions(false);
-    setFilteredSuggestions([]);
-    setEntryType(type);
-    setCategory('overige-kosten');
-    setIsRecurring(false);
-    setRecurringType('monthly');
-  }, [dateSelection.year, dateSelection.month, type]);
+  }, [visible, dateSelection, editEntry, type, incomes]);
   
   const getUniqueSuggestions = () => {
     const entries = entryType === 'income' ? incomes : expenses;
